@@ -10,12 +10,12 @@ import (
 func main() {
 	config.InitConfig()
 	ctx := context.Background()
-	r, err := milvus.NewMilvusRetriever(ctx)
+	retriever, err := milvus.NewMilvusRetriever(ctx)
 	if err != nil {
 		panic(err)
 	}
 	query := "服务下线是什么原因"
-	docs, err := r.Retrieve(ctx, query)
+	docs, err := retriever.Retrieve(ctx, query)
 	if err != nil {
 		panic(err)
 	}

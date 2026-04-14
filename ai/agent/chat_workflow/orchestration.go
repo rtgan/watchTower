@@ -7,8 +7,8 @@ import (
 	"github.com/cloudwego/eino/schema"
 )
 
-// 生成可运行的EinoAgent(Agent图-EinoGraph)
-func BuildEinoAgent(ctx context.Context) (r compose.Runnable[*UserMessage, *schema.Message], err error) {
+// 生成可运行的EinoGraph(Agent图)
+func BuildChatAgent(ctx context.Context) (r compose.Runnable[*UserMessage, *schema.Message], err error) {
 	const (
 		InputToRag      = "InputToRag"
 		ChatTemplate    = "ChatTemplate"

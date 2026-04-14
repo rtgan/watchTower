@@ -10,6 +10,7 @@ import (
 	"watchTower/common/config"
 	"watchTower/common/fileloader"
 	logcallback "watchTower/common/log_callback"
+
 	"watchTower/common/milvus"
 
 	"github.com/cloudwego/eino/components/document"
@@ -23,7 +24,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	//所执行函数(这里是main)的路径下必须得有./docs，然后把这之下的路径递归遍历给path
+	//所执行函数(这里是main)的路径下 必须得有./docs —— 然后把这之下的路径递归遍历给path
 	err = filepath.WalkDir("./docs", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return fmt.Errorf("walk dir failed: %w", err)
@@ -80,7 +81,7 @@ func main() {
 				}
 			}
 		}
-		// 重新构建(ids：写入 Milvus 的每一条记录的id)
+		// 重新构建(ids：写入 Milvus 的每一条记录的id)————id在MarkdownSplitter节点的newDocumentTransformer方法中生成
 		ids, err := r.Invoke(ctx, document.Source{URI: path}, compose.WithCallbacks(logcallback.LogCallback(&config.Conf.LogCallback)))
 		if err != nil {
 			return fmt.Errorf("invoke index graph failed: %w", err)

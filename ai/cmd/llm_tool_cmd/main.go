@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"watchTower/ai/tools"
 	"watchTower/common/config"
+	conf "watchTower/common/config"
+	logcallback "watchTower/common/log_callback"
 
 	"github.com/cloudwego/eino-ext/components/model/openai"
 	"github.com/cloudwego/eino/compose"
@@ -53,12 +55,16 @@ func main() {
 		panic(err)
 	}
 	// 运行示例
-	resp, err := runnable.Invoke(ctx, []*schema.Message{
-		{
-			Role:    schema.User,
-			Content: "告诉我你有哪些工具可以使用",
+	resp, err := runnable.Invoke(
+		ctx,
+		[]*schema.Message{
+			{
+				Role:    schema.User,
+				Content: "告诉我你有哪些工具可以使用",
+			},
 		},
-	})
+		compose.WithCallbacks(logcallback.LogCallback(&conf.Conf.LogCallback)),
+	)
 	if err != nil {
 		panic(err)
 	}

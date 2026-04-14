@@ -23,6 +23,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
 	// 第一次对话
 	out, err := runner.Invoke(ctx, userMessage)
 	if err != nil {
@@ -31,8 +32,10 @@ func main() {
 	answer := out.Content
 	fmt.Println("Q: 你好")
 	fmt.Println("A:", answer)
+	// 保存对话历史
 	mem.GetSimpleMemory(id).SetMessages(schema.UserMessage("你好"))
 	mem.GetSimpleMemory(id).SetMessages(schema.SystemMessage(out.Content))
+
 	// 第二次对话
 	userMessage = &chat_workflow.UserMessage{
 		ID:      id,

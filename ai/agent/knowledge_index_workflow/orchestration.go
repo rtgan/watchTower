@@ -7,6 +7,7 @@ import (
 	"github.com/cloudwego/eino/compose"
 )
 
+// 生成可运行的EinoGraph(Agent图)
 func BuildKnowledgeIndexing(ctx context.Context) (r compose.Runnable[document.Source, []string], err error) {
 	const (
 		FileLoader       = "FileLoader"
@@ -24,7 +25,7 @@ func BuildKnowledgeIndexing(ctx context.Context) (r compose.Runnable[document.So
 		return nil, err
 	}
 	_ = g.AddDocumentTransformerNode(MarkdownSplitter, markdownSplitterKeyOfDocumentTransformer)
-	indexerKeyOfIndexer, err := newIndexer(ctx)
+	indexerKeyOfIndexer, err := newIndexer(ctx) //该节点会自动完成「向量化 + 写入 Milvus」这类工作
 	if err != nil {
 		return nil, err
 	}

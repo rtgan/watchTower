@@ -27,6 +27,6 @@ func CORSMiddleware(ctx *gin.Context) {
 	ctx.Writer.Header().Set("Access-Control-Allow-Origin", origin)
 	ctx.Writer.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
 	ctx.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
-	ctx.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+	ctx.Writer.Header().Set("Access-Control-Allow-Credentials", "true") //允许前端带 cookie 等凭据请求
 	ctx.Next()
 }

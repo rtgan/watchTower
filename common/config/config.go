@@ -64,6 +64,13 @@ type Config struct {
 	McpUrl               string                        `mapstructure:"mcp_url"`
 	Prometheus           PrometheusConfig              `mapstructure:"prometheus"`
 	Milvus               MilvusConfig                  `mapstructure:"milvus"`
+	// Google Custom Search JSON API，用于 google_search 工具；不配则不在 Agent 中注册该工具
+	GoogleSearch         GoogleSearchConfig            `mapstructure:"google_search"`
+}
+
+type GoogleSearchConfig struct {
+	ApiKey         string `mapstructure:"api_key"`
+	SearchEngineID string `mapstructure:"search_engine_id"`
 }
 
 type ServerConfig struct {

@@ -44,4 +44,11 @@ milvus:
   db_name: "agent" #库名
   collection_name: "biz" #集合名(表名)
 
+# Google Programmable Search（Custom Search JSON API），可选
+# 不配则跳过 google_search 工具，仍可使用 duckduckgo 等
+# 申请说明：https://developers.google.com/custom-search/v1/overview
+google_search:
+  api_key: ""
+  search_engine_id: ""
+
 
