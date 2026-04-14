@@ -1,0 +1,27 @@
+package knowledge_index_workflow
+
+import (
+	"context"
+
+	"github.com/cloudwego/eino-ext/components/document/transformer/splitter/markdown"
+	"github.com/cloudwego/eino/components/document"
+	"github.com/google/uuid"
+)
+
+// newDocumentTransformer component initialization function of node 'MarkdownSplitter' in graph 'KnowledgeIndexing'
+func newDocumentTransformer(ctx context.Context) (tfr document.Transformer, err error) {
+	config := &markdown.HeaderConfig{
+		Headers: map[string]string{ //按一级标题进行分割
+			"#": "title",
+		},
+		TrimHeaders: false, //不删除标题
+		IDGenerator: func(ctx context.Context, originalID string, splitIndex int) string {
+			return uuid.New().String()
+		},
+	}
+	tfr, err = markdown.NewHeaderSplitter(ctx, config)
+	if err != nil {
+		return nil, err
+	}
+	return tfr, nil
+}
