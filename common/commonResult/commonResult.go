@@ -4,7 +4,7 @@ import "watchTower/common/enum"
 
 type BizCode = int
 
-const SuccessCode BizCode = 0 //根据前端需要配置即可
+const SuccessCode BizCode = 200 //根据前端需要配置即可
 
 var SuccessMap = enum.Enum{
 	SuccessCode: "success",
