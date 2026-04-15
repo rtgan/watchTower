@@ -2,11 +2,11 @@ package router
 
 import "github.com/gin-gonic/gin"
 
-func InitRouter() *gin.Engine {
-	r := gin.Default()
+func InitRouter(r *gin.Engine) *gin.Engine {
+
 	globalRouter := r.Group("/api")
 	{
-		ChatRouter(globalRouter.Group("/chat"))
+		ChatRouter(globalRouter)
 	}
 	return r
 }

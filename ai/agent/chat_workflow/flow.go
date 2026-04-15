@@ -2,10 +2,12 @@ package chat_workflow
 
 import (
 	"context"
+	"io"
 	"watchTower/ai/tools"
 
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/flow/agent/react"
+	"github.com/cloudwego/eino/schema"
 )
 
 // newReactAgentLambda component initialization function of node 'ReactAgent' in graph 'EinoAgent'
@@ -13,7 +15,9 @@ func newReactAgentLambda(ctx context.Context) (lba *compose.Lambda, err error) {
 	// TODO Modify component configuration here.
 	config := &react.AgentConfig{
 		MaxStep:            25,
-		ToolReturnDirectly: map[string]struct{}{}}
+		ToolReturnDirectly: map[string]struct{}{},
+		StreamToolCallChecker: lookAheadStreamToolCallChecker,
+	}
 	chatModelIns11, err := newChatModel(ctx)
 	if err != nil {
 		return nil, err
@@ -45,4 +49,28 @@ func newReactAgentLambda(ctx context.Context) (lba *compose.Lambda, err error) {
 		return nil, err
 	}
 	return lba, nil
+}
+
+// lookAheadStreamToolCallChecker reads up to maxLookAheadChunks chunks to
+// detect tool calls, then returns false optimistically so the remaining
+// stream can flow to the caller in real-time. This preserves streaming UX
+// while still catching models (DeepSeek/Claude) that emit short preamble
+// text before tool calls.
+const maxLookAheadChunks = 20
+
+func lookAheadStreamToolCallChecker(_ context.Context, sr *schema.StreamReader[*schema.Message]) (bool, error) {
+	defer sr.Close()
+	for i := 0; i < maxLookAheadChunks; i++ {
+		msg, err := sr.Recv()
+		if err == io.EOF {
+			return false, nil
+		}
+		if err != nil {
+			return false, err
+		}
+		if len(msg.ToolCalls) > 0 {
+			return true, nil
+		}
+	}
+	return false, nil
 }

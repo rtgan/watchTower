@@ -2,7 +2,7 @@
 server:
   appName: "watchTower"
   host: "0.0.0.0"
-  port: 8000
+  port: 6872
   swaggerPath: "/swagger"
 
 # https://goframe.org/docs/core/glog-config
@@ -31,7 +31,7 @@ doubao_embedding_model:
   vector_dim: "2048"
 
 # 知识库文件目录
-file_dir: "/Users/runtinggan/go/src/watchTower/ai/cmd/knowledge_cmd/docs"
+file_dir: "/Users/runtinggan/go/src/watchTower/docs"
 
 #腾讯CLS的MCP
 mcp_url: "https://mcp-api.tencent-cloud.com/sse/55f02ffd72504e19"

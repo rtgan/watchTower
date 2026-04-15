@@ -39,7 +39,7 @@ func main() {
 	// 第二次对话
 	userMessage = &chat_workflow.UserMessage{
 		ID:      id,
-		Query:   "现在是几点",
+		Query:   "服务下线是什么原因",
 		History: mem.GetSimpleMemory(id).GetMessages(),
 	}
 	out, err = runner.Invoke(ctx, userMessage)
@@ -48,6 +48,6 @@ func main() {
 	}
 	answer = out.Content
 	fmt.Println("----------------")
-	fmt.Println("Q: 现在是几点")
+	fmt.Println("Q: 服务下线是什么原因")
 	fmt.Println("A:", answer)
 }

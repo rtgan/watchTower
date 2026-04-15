@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"log"
 	"watchTower/common/config"
+	"watchTower/middleware"
 	"watchTower/router"
+
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
@@ -23,6 +26,8 @@ func main() {
 }
 
 func StartServer(host string, port int) error {
-	r := router.InitRouter()
+	r := gin.Default()
+	r.Use(middleware.CORSMiddleware) //设置跨域策略
+	r = router.InitRouter(r)
 	return r.Run(fmt.Sprintf("%s:%d", host, port))
 }
