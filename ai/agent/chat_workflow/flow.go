@@ -38,6 +38,7 @@ func newReactAgentLambda(ctx context.Context) (lba *compose.Lambda, err error) {
 	config.ToolsConfig.Tools = append(config.ToolsConfig.Tools, tools.NewMysqlCrudTool())
 	config.ToolsConfig.Tools = append(config.ToolsConfig.Tools, tools.NewGetCurrentTimeTool())
 	config.ToolsConfig.Tools = append(config.ToolsConfig.Tools, tools.NewQueryInternalDocsTool())
+	config.ToolsConfig.Tools = append(config.ToolsConfig.Tools, tools.NewSearchFileTool())
 	config.ToolsConfig.Tools = append(config.ToolsConfig.Tools, searchTool) //添加duckduckgo工具
 
 	ins, err := react.NewAgent(ctx, config)

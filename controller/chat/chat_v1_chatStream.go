@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 	"watchTower/ai/agent/chat_workflow"
 	logcallback "watchTower/common/log_callback"
 	"watchTower/mem"
@@ -23,7 +24,9 @@ func ChatStream(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"message": fmt.Sprintf("Failed to bind JSON: %v", err)})
 		return
 	}
-	ctx := context.WithValue(c.Copy().Request.Context(), "client_id", req.Id)
+	baseCtx, cancel := context.WithTimeout(c.Copy().Request.Context(), 3*time.Minute)
+	defer cancel()
+	ctx := context.WithValue(baseCtx, "client_id", req.Id)
 
 	userMessage := &chat_workflow.UserMessage{
 		ID:      req.Id,

@@ -16,7 +16,7 @@ import (
 )
 
 func Chat(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(c.Request.Context(), 1*time.Minute)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 3*time.Minute)
 	defer cancel()
 	var req vo.ChatReq
 	if err := c.ShouldBindJSON(&req); err != nil {

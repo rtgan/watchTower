@@ -1,0 +1,7 @@
+实现skills的"插件机制"：
+· ai/skills/ 目录下放 .md 文件（带 YAML 头），程序启动时自动扫描加载，注入到 Agent 的 system prompt 中，Agent 就自动获得这些知识。
+· skills的自动扫描加载是通过loader.go文件实现的。
+
+skills的作用：
+· 此Skill加载层，让"知识"和"代码"解耦："知识"和"代码"分别在不同的目录下，互不干扰。
+· skills可以被多个Agent共享：多个Agent可以共享同一个skills，从而实现知识的共享。

@@ -2,6 +2,7 @@ package chat_workflow
 
 import (
 	"context"
+	"watchTower/ai/skills"
 
 	"github.com/cloudwego/eino/components/prompt"
 	"github.com/cloudwego/eino/schema"
@@ -17,7 +18,7 @@ func newChatTemplate(ctx context.Context) (ctp prompt.ChatTemplate, err error) {
 	config := &ChatTemplateConfig{
 		FormatType: schema.FString,
 		Templates: []schema.MessagesTemplate{
-			schema.SystemMessage(systemPrompt),
+			schema.SystemMessage(buildSystemPrompt()),
 			schema.MessagesPlaceholder("history", false),
 			schema.UserMessage("{content}"),
 		},
@@ -26,7 +27,15 @@ func newChatTemplate(ctx context.Context) (ctp prompt.ChatTemplate, err error) {
 	return ctp, nil
 }
 
-var systemPrompt = `
+func buildSystemPrompt() string {
+	p := baseSystemPrompt
+	if skillBlock := skills.FormatForPrompt(); skillBlock != "" {
+		p += "\n" + skillBlock
+	}
+	return p
+}
+
+var baseSystemPrompt = `
 # 角色：对话小助手
 ## 核心能力
 - 上下文理解与对话
@@ -35,7 +44,6 @@ var systemPrompt = `
 - 在回复前，请确保你：
   • 完全理解用户的需求和问题，如果有不清楚的地方，要向用户确认
   • 考虑最合适的解决方案方法
-  • 日志主题地域：ap-guangzhou；日志主题id：869830db-a055-4479-963b-3c898d27e755
 - 提供帮助时：
   • 语言清晰简洁
   • 适当的时候提供实际例子

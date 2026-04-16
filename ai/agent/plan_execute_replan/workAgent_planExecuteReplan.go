@@ -3,6 +3,7 @@ package plan_execute_replan
 import (
 	"context"
 	"fmt"
+	"watchTower/ai/skills"
 
 	"github.com/cloudwego/eino-examples/adk/common/prints"
 	"github.com/cloudwego/eino/adk"
@@ -10,6 +11,9 @@ import (
 )
 
 func BuildPlanExecuteReplanAgent(ctx context.Context, query string) (string, []string, error) {
+	if skillBlock := skills.FormatForPrompt(); skillBlock != "" {
+		query = skillBlock + "\n" + query //(这里未来可以考虑优化成向量相似度匹配对应的skill)
+	}
 	planAgent, err := NewPlannerAgent(ctx)
 	if err != nil {
 		return "", []string{}, err

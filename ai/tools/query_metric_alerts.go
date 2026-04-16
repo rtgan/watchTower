@@ -137,6 +137,7 @@ func calculateDuration(activeAtStr string) string {
 	}
 }
 
+// 可通过mock脚本进行测试，脚本路径：/watchTower/scripts_mockPrometheus
 // NewPrometheusAlertsQueryTool 创建Prometheus告警查询工具
 func NewPrometheusAlertsQueryTool() tool.InvokableTool {
 	t, err := utils.InferOptionableTool(

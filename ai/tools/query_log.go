@@ -10,7 +10,8 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
-// 获取CLS提供的MCP日志相关工具(只是工具.日志数据需接入待观测服务或提前上传一批日志进入CLS)
+// 可在这里开启对应的日志demo后进行测试：https://console.cloud.tencent.com/cls/overview
+// 获取CLS提供的MCP日志相关工具(只是工具.日志数据需接入待观测服务或提前上传一批日志进入CLS)——问答时可能需要提供地域、主题id及关键字
 func GetLogMcpTool() ([]tool.BaseTool, error) {
 
 	ctx := context.Background()
