@@ -108,6 +108,7 @@ type PrometheusConfig struct {
 }
 
 type MilvusConfig struct {
+	Address        string `mapstructure:"address"`
 	DbName         string `mapstructure:"db_name"`
 	CollectionName string `mapstructure:"collection_name"`
 }

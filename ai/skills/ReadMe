@@ -3,5 +3,14 @@
 · skills的自动扫描加载是通过loader.go文件实现的。
 
 skills的作用：
-· 此Skill加载层，让"知识"和"代码"解耦："知识"和"代码"分别在不同的目录下，互不干扰。
+· 让"知识"和"代码"解耦："知识"和"代码"分别在不同的目录下，互不干扰。
 · skills可以被多个Agent共享：多个Agent可以共享同一个skills，从而实现知识的共享。
+· skills的加载不是所有内容都一次性灌入上下文，而是分三层按需加载：
+    第1层：元数据（name + description）  → 始终在上下文中（~100 tokens）
+        ↓ Agent 判断是否相关
+    第2层：SKILL.md 正文               → 触发时才加载（<5000 words）
+        ↓ Agent 判断是否需要更多细节
+    第3层：附属资源（references/scripts/）→ 按需读取（无上限）
+
+· 对于/.cursor/skills/watchtower-dev/SKILL.md 这本质上就是写给 Cursor AI 看的说明书。它的核心作用就一个：
+    在每次新对话中，轻松自动获得项目的关键上下文。

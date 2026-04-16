@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"testing"
+	"watchTower/common/config"
 
 	"github.com/bytedance/sonic"
 )
@@ -32,4 +33,42 @@ func TestMysqlCrud(t *testing.T) {
 		t.Fatalf("mysql crud: %v", err)
 	}
 	t.Logf("mysql crud: %v", result)
+}
+
+func TestQueryInternalDocs(t *testing.T) {
+	config.InitConfig() // 先加载配置
+	internalDocsTool := NewQueryInternalDocsTool()
+	input := &QueryInternalDocsInput{
+		Query: "12001是什么错误码",
+	}
+	json, err := sonic.MarshalString(input)
+	if err != nil {
+		t.Fatalf("query internal docs: %v", err)
+	}
+	result, err := internalDocsTool.InvokableRun(context.Background(), json)
+	if err != nil {
+		t.Fatalf("query internal docs: %v", err)
+	}
+	t.Logf("query internal docs: %v", result)
+}
+
+func TestGetLogMcpTool(t *testing.T) {
+	config.InitConfig() // 先加载配置
+	logMcpTools, err := GetLogMcpTool()
+	if err != nil {
+		t.Fatalf("get log mcp tool: %v", err)
+	}
+	for _, tool := range logMcpTools {
+		t.Logf("log mcp tool: %v", tool)
+	}
+}
+
+func TestQueryPrometheusAlerts(t *testing.T) {
+	config.InitConfig() // 先加载配置
+	prometheusAlertsTool := NewPrometheusAlertsQueryTool()
+	result, err := prometheusAlertsTool.InvokableRun(context.Background(), "{}")
+	if err != nil {
+		t.Fatalf("query prometheus alerts: %v", err)
+	}
+	t.Logf("query prometheus alerts: %v", result)
 }

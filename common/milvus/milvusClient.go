@@ -11,9 +11,13 @@ import (
 
 // 创建milvus客户端
 func NewMilvusClient(ctx context.Context) (cli.Client, error) {
+	addr := config.Conf.Milvus.Address
+	if addr == "" {
+		addr = "localhost:19530"
+	}
 	// 1. 先连接default数据库
 	defaultClient, err := cli.NewClient(ctx, cli.Config{
-		Address: "localhost:19530",
+		Address: addr,
 		DBName:  "default",
 	})
 	if err != nil {
@@ -40,7 +44,7 @@ func NewMilvusClient(ctx context.Context) (cli.Client, error) {
 
 	// 3. 创建连接到agent数据库的客户端
 	agentClient, err := cli.NewClient(ctx, cli.Config{
-		Address: "localhost:19530",
+		Address: addr,
 		DBName:  config.Conf.Milvus.DbName,
 	})
 	if err != nil {

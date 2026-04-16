@@ -1,11 +1,9 @@
-# https://goframe.org/docs/web/server-config-file-template
 server:
   appName: "watchTower"
   host: "0.0.0.0"
   port: 6872
   swaggerPath: "/swagger"
 
-# https://goframe.org/docs/core/glog-config
 logger:
   level: "all"
   stdout: true
@@ -24,32 +22,26 @@ ds_quick_chat_model:
   base_url: "https://ark.cn-beijing.volces.com/api/v3"
   model: "deepseek-v3-2-251201"
 
-# 豆包的结合版embedding模型（支持文本、图片）
 doubao_embedding_model:
   api_key: "4c0b5deb-a081-4a1d-9b34-3ec485e96b40"
   model: "doubao-embedding-vision-251215"
   vector_dim: "2048"
 
-# 知识库文件目录
-file_dir: "/Users/runtinggan/go/src/watchTower/docs"
+# Docker 容器内的文件目录
+file_dir: "/app/docs"
 
-#腾讯CLS的MCP
 mcp_url: "https://mcp-api.tencent-cloud.com/sse/55f02ffd72504e19"
 
-# Prometheus HTTP API（query_prometheus_alerts）；不配则默认 http://127.0.0.1:9090
+# Docker 网络内使用服务名 mock-prometheus
 prometheus:
-  base_url: "http://127.0.0.1:9090"
+  base_url: "http://mock-prometheus:9090"
 
+# Docker 网络内使用服务名 standalone（Milvus 容器名）
 milvus:
-  address: "localhost:19530"
-  db_name: "agent" #库名
-  collection_name: "biz" #集合名(表名)
+  address: "standalone:19530"  # 此address用于给客户端连接到容器内的 Milvus 服务
+  db_name: "agent"
+  collection_name: "biz"
 
-# Google Programmable Search（Custom Search JSON API），可选
-# 不配则跳过 google_search 工具，仍可使用 duckduckgo 等
-# 申请说明：https://developers.google.com/custom-search/v1/overview
 google_search:
   api_key: ""
   search_engine_id: ""
-
-

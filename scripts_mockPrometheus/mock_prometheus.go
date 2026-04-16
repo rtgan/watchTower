@@ -17,8 +17,8 @@ func main() {
 
 	addr := ":9090"
 	fmt.Println("=== Mock Prometheus 已启动 ===")
-	fmt.Printf("监听地址: http://127.0.0.1%s\n", addr)
-	fmt.Printf("告警接口: http://127.0.0.1%s/api/v1/alerts\n", addr)
+	fmt.Printf("监听地址: http://localhost%s\n", addr)
+	fmt.Printf("告警接口: http://localhost%s/api/v1/alerts\n", addr)
 	fmt.Println("按 Ctrl+C 停止")
 	log.Fatal(http.ListenAndServe(addr, nil))
 }
@@ -64,10 +64,10 @@ func handleAlerts(w http.ResponseWriter, r *http.Request) {
 				},
 				{
 					"labels": map[string]string{
-						"alertname": "DiskSpaceRunningLow",
-						"instance":  "10.0.0.7:9100",
-						"job":       "node-exporter",
-						"severity":  "warning",
+						"alertname":  "DiskSpaceRunningLow",
+						"instance":   "10.0.0.7:9100",
+						"job":        "node-exporter",
+						"severity":   "warning",
 						"mountpoint": "/data",
 					},
 					"annotations": map[string]string{

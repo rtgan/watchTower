@@ -10,7 +10,7 @@ import (
 	"time"
 	"watchTower/ai/agent/knowledge_index_workflow"
 	"watchTower/common/config"
-	fileloader "watchTower/common/fileLoader"
+	fileloader "watchTower/common/fileloader"
 	logcallback "watchTower/common/log_callback"
 	"watchTower/common/milvus"
 	"watchTower/model/vo"

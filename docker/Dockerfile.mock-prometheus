@@ -1,0 +1,15 @@
+FROM golang:1.25-alpine AS builder
+
+WORKDIR /src
+COPY scripts_mockPrometheus/mock_prometheus.go .
+RUN CGO_ENABLED=0 go build -o /mock-prometheus mock_prometheus.go
+
+FROM alpine:3.20
+
+RUN apk add --no-cache ca-certificates tzdata
+ENV TZ=Asia/Shanghai
+
+COPY --from=builder /mock-prometheus /usr/local/bin/mock-prometheus
+
+EXPOSE 9090
+CMD ["mock-prometheus"]
