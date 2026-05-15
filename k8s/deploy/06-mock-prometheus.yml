@@ -1,0 +1,66 @@
+# Copyright 2026 watchTower
+# Mock Prometheus — 模拟告警数据，供 watchTower 查询
+# 端口: 9090
+apiVersion: v1
+kind: Service
+metadata:
+  name: mock-prometheus
+  namespace: watchtower
+  labels:
+    app: mock-prometheus
+spec:
+  ports:
+  - name: http
+    port: 9090
+    targetPort: 9090
+    protocol: TCP
+  selector:
+    app: mock-prometheus
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mock-prometheus
+  namespace: watchtower
+  labels:
+    app: mock-prometheus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mock-prometheus
+  template:
+    metadata:
+      labels:
+        app: mock-prometheus
+    spec:
+      containers:
+      - name: mock-prometheus
+        # 直接复用 docker/ 目录下的 mock-prometheus 镜像
+        # 构建: docker build -f docker/Dockerfile.mock-prometheus -t watchtower/mock-prometheus:v1.0.0 .
+        image: watchtower/mock-prometheus:v1.0.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 9090
+          name: http
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /api/v1/alerts
+            port: 9090
+          failureThreshold: 3
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /api/v1/alerts
+            port: 9090
+          failureThreshold: 3
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            memory: 128Mi

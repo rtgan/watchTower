@@ -1,0 +1,22 @@
+# Copyright 2026 watchTower
+# Kind cluster configuration
+# 创建集群: kind create cluster --name watchtower --config deploy/00-kind-cluster.yml
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: watchtower
+nodes:
+  - role: control-plane
+    labels:
+      ingress-ready: "true"
+    # Ingress Controller 默认部署在 control-plane 节点（Kind 特殊处理）
+    # 外部流量通过 hostPort 80/443 进入集群后由 Ingress Controller 转发
+    extraPortMappings:
+    - containerPort: 80
+      hostPort: 80
+      protocol: TCP
+    - containerPort: 443
+      hostPort: 443
+      protocol: TCP
+  - role: worker
+  - role: worker
+  - role: worker

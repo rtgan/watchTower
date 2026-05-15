@@ -1,0 +1,167 @@
+# Copyright 2026 watchTower
+# watchTower Backend Deployment + Service
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: watchtower-backend
+  namespace: watchtower
+  labels:
+    app: watchtower-backend
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 6872
+    targetPort: 6872
+    protocol: TCP
+  selector:
+    app: watchtower-backend
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: watchtower-backend
+  namespace: watchtower
+  labels:
+    app: watchtower-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: watchtower-backend
+  template:
+    metadata:
+      labels:
+        app: watchtower-backend
+    spec:
+      # 初始化容器：在 backend 主容器启动前等待 Milvus 就绪
+      # 防止 backend 因连接不到 Milvus 而 crash loop
+      initContainers:
+      - name: wait-for-milvus
+        image: busybox:1.36
+        command:
+        - sh
+        - -c
+        - |
+          echo "[wait-for-milvus] Waiting for Milvus at milvus-standalone:19530..."
+          until nc -z milvus-standalone 19530; do
+            echo "[wait-for-milvus] Milvus not ready, waiting 5s..."
+            sleep 5
+          done
+          echo "[wait-for-milvus] Milvus is ready!"
+      containers:
+      - name: backend
+        # 镜像由 deploy.sh 构建并加载到 Kind
+        # 构建: docker build -f k8s/backend/Dockerfile -t watchtower/backend:v1.0.0 .
+        image: watchtower/backend:v1.0.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 6872
+          name: http
+          protocol: TCP
+        # 配置文件通过 ConfigMap 挂载（无需构建时嵌入）
+        volumeMounts:
+        - name: conf
+          mountPath: /app/etc/conf.yml
+          subPath: conf.yml
+        - name: docs
+          mountPath: /app/docs
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 6872
+          failureThreshold: 5
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 6872
+          failureThreshold: 3
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: "2"
+            memory: 2Gi
+        env:
+        - name: TZ
+          value: Asia/Shanghai
+      volumes:
+      - name: conf
+        configMap:
+          name: watchtower-conf
+          items:
+          - key: conf.yml
+            path: conf.yml
+      - name: docs
+        emptyDir: {}
+---
+# watchTower Frontend (Nginx) Deployment + Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: watchtower-frontend
+  namespace: watchtower
+  labels:
+    app: watchtower-frontend
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 80
+    targetPort: 80
+    protocol: TCP
+  selector:
+    app: watchtower-frontend
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: watchtower-frontend
+  namespace: watchtower
+  labels:
+    app: watchtower-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: watchtower-frontend
+  template:
+    metadata:
+      labels:
+        app: watchtower-frontend
+    spec:
+      containers:
+      - name: frontend
+        image: watchtower/frontend:v1.0.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 80
+          name: http
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          failureThreshold: 3
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          failureThreshold: 3
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          requests:
+            cpu: 50m
+            memory: 32Mi
+          limits:
+            cpu: 500m
+            memory: 128Mi

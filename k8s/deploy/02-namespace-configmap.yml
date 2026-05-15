@@ -1,0 +1,71 @@
+# Copyright 2026 watchTower
+# Namespace and ConfigMap
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: watchtower
+  labels:
+    app.kubernetes.io/instance: watchtower
+    app.kubernetes.io/name: watchtower
+---
+# watchTower 配置文件（ConfigMap 形式挂载到 Pod）
+# 部署时将 docker/conf-docker.yml 的内容适配到此处
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: watchtower-conf
+  namespace: watchtower
+data:
+  conf.yml: |
+    server:
+      appName: "watchTower"
+      host: "0.0.0.0"
+      port: 6872
+      swaggerPath: "/swagger"
+
+    logger:
+      level: "all"
+      stdout: true
+
+    log_callback:
+      detail: true
+      debug: false
+
+    # DeepSeek V3 推理模型（慢但强，用于 Plan-Execute-Replan 和复杂 Chat）
+    ds_think_chat_model:
+      api_key: "4c0b5deb-a081-4a1d-9b34-3ec485e96b40"
+      base_url: "https://ark.cn-beijing.volces.com/api/v3"
+      model: "deepseek-v3-2-251201"
+
+    # DeepSeek V3 快模型（用于 Chat Workflow 和 Executor）
+    ds_quick_chat_model:
+      api_key: "4c0b5deb-a081-4a1d-9b34-3ec485e96b40"
+      base_url: "https://ark.cn-beijing.volces.com/api/v3"
+      model: "deepseek-v3-2-251201"
+
+    # 豆包 Embedding 模型（用于 Milvus 向量化和 RAG 检索）
+    doubao_embedding_model:
+      api_key: "4c0b5deb-a081-4a1d-9b34-3ec485e96b40"
+      model: "doubao-embedding-vision-251215"
+      vector_dim: "2048"
+
+    # 知识库文件目录（挂载 PVC 或 emptyDir）
+    file_dir: "/app/docs"
+
+    # 腾讯云 MCP 日志查询端点（可选）
+    mcp_url: "https://mcp-api.tencent-cloud.com/sse/55f02ffd72504e19"
+
+    # Prometheus HTTP API 地址（mock-prometheus 或真实 Prometheus）
+    prometheus:
+      base_url: "http://mock-prometheus:9090"
+
+    # Milvus 向量数据库连接（etcd 元数据存储 + MinIO 对象存储）
+    milvus:
+      address: "milvus-standalone:19530"
+      db_name: "agent"
+      collection_name: "biz"
+
+    # Google Custom Search JSON API（可选，不配则不注册该工具）
+    google_search:
+      api_key: ""
+      search_engine_id: ""

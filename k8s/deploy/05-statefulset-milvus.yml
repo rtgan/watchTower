@@ -1,0 +1,99 @@
+# Copyright 2026 watchTower
+# Milvus Standalone StatefulSet — 向量数据库
+# 依赖: etcd (milvus-etcd:2379) + MinIO (milvus-minio:9000)
+apiVersion: v1
+kind: Service
+metadata:
+  name: milvus-standalone
+  namespace: watchtower
+  labels:
+    app: milvus-standalone
+spec:
+  ports:
+  - name: grpc
+    port: 19530
+    targetPort: 19530
+    protocol: TCP
+  - name: http
+    port: 9091
+    targetPort: 9091
+    protocol: TCP
+  selector:
+    app: milvus-standalone
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: milvus-standalone
+  namespace: watchtower
+  labels:
+    app: milvus-standalone
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: milvus-standalone
+  template:
+    metadata:
+      labels:
+        app: milvus-standalone
+    spec:
+      # Milvus 需要 seccompProfile: Unconfined（等价于 docker-compose 的 seccomp:unconfined）
+      # 仅设置 runAsUser: 0 不够，必须关闭 seccomp 限制才能正常运行
+      securityContext:
+        seccompProfile:
+          type: Unconfined
+        runAsUser: 0
+        fsGroup: 0
+      containers:
+      - name: milvus
+        image: milvusdb/milvus:v2.5.10
+        ports:
+        - containerPort: 19530
+          name: grpc
+          protocol: TCP
+        - containerPort: 9091
+          name: http
+          protocol: TCP
+        env:
+        - name: ETCD_ENDPOINTS
+          value: milvus-etcd:2379
+        - name: MINIO_ADDRESS
+          value: milvus-minio:9000
+        - name: MINIO_ACCESS_KEY_ID
+          value: minioadmin
+        - name: MINIO_SECRET_ACCESS_KEY
+          value: minioadmin
+        command:
+        - milvus
+        args:
+        - run
+        - standalone
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 9091
+          failureThreshold: 5
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 9091
+          failureThreshold: 3
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: "2"
+            memory: 4Gi
+        volumeMounts:
+        - name: milvus-data
+          mountPath: /var/lib/milvus
+  volumes:
+  - name: milvus-data
+    emptyDir: {}

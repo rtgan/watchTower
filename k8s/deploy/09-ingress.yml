@@ -1,0 +1,32 @@
+# Copyright 2026 watchTower
+# Ingress — 路由规则
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: watchtower-ingress
+  namespace: watchtower
+  annotations:
+    # nginx.ingress.kubernetes.io/rewrite-target: /
+    # 注意：不要加 rewrite-target: /，否则 /api 前缀会被 strip 掉
+    # 导致 backend 收到 /chat 而不是 /api/chat，前端所有 API 调用都会 404
+spec:
+  ingressClassName: nginx
+  rules:
+  - http:
+      paths:
+      # 前端静态页面
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: watchtower-frontend
+            port:
+              number: 80
+      # watchTower 后端 API（path: /api 直接透传到 backend，不做 rewrite）
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: watchtower-backend
+            port:
+              number: 6872

@@ -1,9 +1,18 @@
 FROM nginx:1.27-alpine
 
 RUN rm -rf /usr/share/nginx/html/*
+
+# NGINX_API_BASE: 构建时传入 API 基础路径
+# Docker Compose: --build-arg NGINX_API_BASE=http://localhost:6872/api
+# K8s (Ingress) : --build-arg NGINX_API_BASE=/api
+ARG NGINX_API_BASE=/api
+
 COPY SuperBizAgentFrontend/index.html /usr/share/nginx/html/
 COPY SuperBizAgentFrontend/app.js     /usr/share/nginx/html/
 COPY SuperBizAgentFrontend/styles.css /usr/share/nginx/html/
+
+# 替换 app.js 中的硬编码 apiBaseUrl 为构建时的值
+RUN sed -i "s|this\.apiBaseUrl = '[^']*'|this.apiBaseUrl = '${NGINX_API_BASE}'|g" /usr/share/nginx/html/app.js
 
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]

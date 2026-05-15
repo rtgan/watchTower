@@ -1,0 +1,22 @@
+# Copyright 2026 watchTower
+# HPA — 根据 CPU 使用率自动扩缩容 watchTower backend
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: hpa-watchtower-backend
+  namespace: watchtower
+spec:
+  maxReplicas: 5
+  minReplicas: 2
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: watchtower-backend
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50
+  # 期望副本数 = ceil[当前 CPU 使用率 / 目标 CPU%] * 当前副本数
