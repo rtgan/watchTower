@@ -1,1 +1,1 @@
-前端通过docker进行部署
+前端通过docker进行部署，整体部署靠脚本'deploy.sh'
