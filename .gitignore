@@ -3,6 +3,7 @@
 etc/.env
 # 各环境配置如含密钥也忽略；保留 *.example 作为模板
 etc/conf.local.yml
+*经
 
 # 二进制 / 构建产物
 /bin/
