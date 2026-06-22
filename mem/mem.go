@@ -6,6 +6,7 @@ import (
 	"github.com/cloudwego/eino/schema"
 )
 
+// 真实生产环境下不推荐！！！会存在分布式部署的会话一致性问题！！！
 var (
 	SimpleMemoryMap = make(map[string]*SimpleMemory) //内存级存储：「会话ID → 这段对话的短期记忆」
 	mu              sync.Mutex

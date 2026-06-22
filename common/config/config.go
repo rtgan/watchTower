@@ -1,12 +1,14 @@
 package config
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	logcallback "watchTower/common/log_callback"
 
+	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
 )
 
@@ -17,12 +19,29 @@ func InitConfig() (*Config, error) {
 	if err != nil {
 		log.Fatalf("find module root: %v", err)
 	}
+
+	// 1. 加载 .env（不存在不报错；含敏感密钥，不应提交 git）
+	//    优先项目根 .env，其次 etc/.env
+	for _, p := range []string{filepath.Join(root, ".env"), filepath.Join(root, "etc", ".env")} {
+		if _, err := os.Stat(p); err == nil {
+			_ = godotenv.Load(p)
+			break
+		}
+	}
+
 	cfgPath := filepath.Join(root, "etc", "conf.yml")
 
-	v := viper.New()
-	v.SetConfigFile(cfgPath)
+	// 2. 读取原始配置内容，对 ${VAR} 占位符做环境变量展开，再交给 viper。
+	//    这样 conf.yml 可保留占位符（如 api_key: "${ARK_API_KEY}"），真实值放 .env。
+	raw, err := os.ReadFile(cfgPath)
+	if err != nil {
+		log.Fatalf("read config file: %v", err)
+	}
+	expanded := os.ExpandEnv(string(raw))
 
-	if err := v.ReadInConfig(); err != nil {
+	v := viper.New()
+	v.SetConfigType("yaml")
+	if err := v.ReadConfig(bytes.NewReader([]byte(expanded))); err != nil {
 		log.Fatalf("read config: %v", err)
 	}
 
@@ -66,6 +85,18 @@ type Config struct {
 	Milvus               MilvusConfig                  `mapstructure:"milvus"`
 	// Google Custom Search JSON API，用于 google_search 工具；不配则不在 Agent 中注册该工具
 	GoogleSearch         GoogleSearchConfig            `mapstructure:"google_search"`
+	// 腾讯云 CLS 直连配置（query_log 工具直接调 SearchLog API，绕开 MCP）。
+	// 不配则 query_log 不可用（executor 会降级跳过）。
+	CLS                  CLSConfig                     `mapstructure:"cls"`
+}
+
+// CLSConfig 腾讯云 CLS 日志检索直连配置
+type CLSConfig struct {
+	SecretID  string `mapstructure:"secret_id"`
+	SecretKey string `mapstructure:"secret_key"`
+	TopicID   string `mapstructure:"topic_id"`
+	Endpoint  string `mapstructure:"endpoint"`  // API 域名，如 cls.tencentcloudapi.com
+	Region    string `mapstructure:"region"`    // 地域，如 ap-chongqing
 }
 
 type GoogleSearchConfig struct {

@@ -13,24 +13,24 @@ log_callback:
   debug: false
 
 ds_think_chat_model:
-  api_key: "4c0b5deb-a081-4a1d-9b34-3ec485e96b40"
+  api_key: "${ARK_API_KEY}"
   base_url: "https://ark.cn-beijing.volces.com/api/v3"
   model: "deepseek-v3-2-251201"
 
 ds_quick_chat_model:
-  api_key: "4c0b5deb-a081-4a1d-9b34-3ec485e96b40"
+  api_key: "${ARK_API_KEY}"
   base_url: "https://ark.cn-beijing.volces.com/api/v3"
   model: "deepseek-v3-2-251201"
 
 doubao_embedding_model:
-  api_key: "4c0b5deb-a081-4a1d-9b34-3ec485e96b40"
+  api_key: "${ARK_API_KEY}"
   model: "doubao-embedding-vision-251215"
   vector_dim: "2048"
 
 # Docker 容器内的文件目录
 file_dir: "/app/docs"
 
-mcp_url: "https://mcp-api.tencent-cloud.com/sse/55f02ffd72504e19"
+mcp_url: "https://mcp-api.tencent-cloud.com/sse/${CLS_MCP_TOKEN}"
 
 # Docker 网络内使用服务名 mock-prometheus
 prometheus:

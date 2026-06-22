@@ -1,6 +1,7 @@
 # watchTower 全栈面经指南
 
 > 本文档基于 watchTower AI Ops 平台的真实代码，深入覆盖四大方向的面经：
+>
 > - **Prometheus 监控** — 架构原理、高可用、PromQL、K8s 部署
 > - **日志采集** — 腾讯云 CLS + MCP 协议、ELK/Loki 架构设计
 > - **Kubernetes** — 网络通信、HPA、Ingress、StatefulSet、SRE 排查
@@ -37,6 +38,7 @@
 #### 基础版（1-2 年经验）
 
 > **watchTower** | AI 智能运维平台 | Go / Eino / Milvus / MCP
+>
 > - 设计并实现了基于 Plan-Execute-Replan 架构的 AI Agent，支持复杂运维场景下的多工具协同推理
 > - 基于 CloudWeGene Eino 框架构建对话式 AI 工作流，整合 Prometheus 告警查询、腾讯云 CLS 日志检索（通过 MCP 协议）、Milvus 向量知识库 RAG 三大数据源
 > - 实现对话历史滑动窗口管理（内存 + MaxWindowSize=20），控制 token 成本
@@ -46,6 +48,7 @@
 #### 进阶版（3-5 年经验）
 
 > **watchTower** | AI Ops 智能运维平台 | 核心开发 | Go
+>
 > - 主导设计了 **Plan-Execute-Replan Agent 架构**：Planner（DeepSeek V3 思考模型）负责任务分解，Executor（DeepSeek Quick 快模型）负责工具执行，Replanner 负责结果评估与自适应规划，最多 20 次迭代，在告警分析场景下 token 消耗降低约 60%
 > - 基于 **Eino 框架**构建 DAG 工作流：并行执行 RAG 检索和输入预处理，通过 AllPredecessor 机制保证数据就绪后触发后续节点
 > - 实现 **MCP（Model Context Protocol）协议集成**：通过 SSE 传输连接腾讯云 CLS，实现日志查询结果的流式返回，前端延迟降低 40%
@@ -64,6 +67,7 @@
 > **Task**：设计一种既能保证分析质量，又能控制成本的 Agent 架构。
 >
 > **Action**：
+>
 > - 引入 Planner（思考模型）一次性生成完整执行计划，避免每步决策
 > - Executor 使用快模型批量执行工具调用，降低单步延迟
 > - Replanner 评估结果，动态决定是否需要补充分析
@@ -78,6 +82,7 @@
 > **Task**：通过 MCP 协议统一接入日志查询能力。
 >
 > **Action**：
+>
 > - 使用 MCP SDK 创建 SSE 客户端，连接腾讯云 CLS MCP Server
 > - 通过 `eino_mcp.GetTools()` 将 MCP 工具转换为 Eino 工具，无缝接入 Agent
 > - 实现 `lookAheadStreamToolCallChecker`，解决 DeepSeek/Claude 模型在工具调用前输出前缀文本的问题
@@ -91,6 +96,7 @@
 > **Task**：在不修改 eino-ext 源码的情况下，实现类型兼容。
 >
 > **Action**：
+>
 > - 编写 `floatVectorConverter`，将 float64 转换为 float32，再包装为 FloatVector
 > - 在 Retriever 的 Retrieve 方法中调用转换函数，保证传入 Milvus 的向量类型正确
 > - 此外还为 id、content、vector 三个字段分别创建了 AUTOINDEX（L2 距离），加速检索
@@ -104,6 +110,7 @@
 > **Task**：设计一种机制，在保持对话上下文的同时控制消息数量。
 >
 > **Action**：
+>
 > - 使用 `sync.RWMutex` 保护内存中的消息列表（读多写少场景）
 > - MaxWindowSize = 20，超过时丢弃最老的成对消息（保证 user/assistant 配对）
 > - 通过 `sync.Mutex` 保护全局的会话 map（非并发安全）
@@ -117,6 +124,7 @@
 > **Task**：设计一套高可用部署方案，支持自动扩缩容。
 >
 > **Action**：
+>
 > - 后端 Deployment 配置 2 副本，HPA 根据 CPU 80% 自动扩缩至 2-10 副本
 > - 使用 StatefulSet 部署 etcd、Milvus、MinIO，保证稳定网络标识和持久存储
 > - 配置 Ingress + metrics-server，提供外部访问和指标采集能力
@@ -129,38 +137,65 @@
 ### 0.4 常见面试问答
 
 **Q：这个项目你主要负责哪部分？**
+
 > 我主要负责 AI Agent 的设计和实现，包括 Plan-Execute-Replan 架构的搭建、工具调用系统的开发、以及 Eino Graph 工作流编排。另外也参与了 K8s 部署架构的设计和 MCP 协议集成。
 
 **Q：这个项目最大的技术难点是什么？**
+
 > 我认为最大的难点是 Agent 的迭代控制——如何让 Replanner 正确判断"分析是否充分"，以及如何避免无限循环。我们通过三层机制解决：MaxIterations=20 兜底、Replanner 显式终止、以及每个工具调用的超时控制。
 
 **Q：为什么选择 Eino 而不是 LangChain？**
+
 > 主要考虑三点：1）Go 语言是我们团队主力语言，Eino 可以直接集成，不需要维护 Python 服务；2）Eino 的类型安全更好，编译期就能发现错误；3）Eino 的 DAG 编排非常简洁，代码可读性高。
 
 **Q：RAG 效果怎么样？有没有遇到什么问题？**
+
 > 早期遇到了一个关键问题：eino-ext 默认使用 BinaryVector，但我们 Milvus collection 用的是 FloatVector，导致检索始终返回空结果。后来通过类型转换函数解决了。另外一个问题是 Embedding 维度和 Milvus schema 不匹配，需要在配置和初始化时保证 dim 参数一致。
 
 **Q：线上出过什么问题？怎么排查的？**
+
 > 印象最深的一次是 Pod 内存持续上涨但 CPU 正常。通过 pprof heap 分析发现是对话历史的 `schema.Message` 消息体中包含了完整的上下文，每次 append 都在累积。后来优化了 MaxWindowSize 和消息体的裁剪逻辑，内存问题解决。
+> （pprof heap = Go内置的内存分析工具， 可查看是哪个对象）
+
+```
+问题：Pod 内存持续上涨
+     │
+     ▼
+1. 通过 pprof heap 抓取内存快照（命令：go tool pprof -http=:6061 http://localhost:6060/debug/pprof/heap）
+     │
+     ▼
+2. 发现 schema.NewMessage 占 64MB，累积调用上万次
+     │
+     ▼
+3. 原因：每次 append 对话历史都在创建新的 Message 对象，
+         但旧对象没释放（MaxWindowSize 没控制好）
+     │
+     ▼
+4. 修复：添加 MaxWindowSize 限制 + 裁剪消息体
+     │
+     ▼
+5. 再次 pprof heap 验证内存下降
+```
+
+> 不只是 pprof heap，我们还用过 pprof cpu 分析 CPU 热点，用 trace 分析 GC 停顿。Go 的 pprof 是排查线上性能问题的第一把刀。
 
 ---
 
 ### 0.5 简历关键词速查表
 
-| 分类 | 推荐关键词 | 频次 |
-|------|------------|------|
-| **架构** | Plan-Execute-Replan、ReAct Agent、DAG 工作流、Eino Graph | 高 |
-| **工具** | MCP 协议、Tool Calling、JSON Schema 推断、SSE 流式 | 高 |
-| **模型** | DeepSeek V3/Quick、豆包 Embedding、Model Factory 单例 | 中 |
-| **数据** | Milvus RAG、FloatVector 类型转换、向量检索、2048 维 | 高 |
-| **并发** | GMP 调度、sync.RWMutex、context.Context、超时控制 | 中 |
-| **部署** | Kubernetes HPA、StatefulSet、Ingress、metrics-server | 中 |
-| **框架** | Eino（compose/planexecute/react）、Gin 中间件 | 高 |
-| **调试** | pprof 火焰图、heap profile、流式 SSE 预读机制 | 低 |
+
+| 分类     | 推荐关键词                                             | 频次  |
+| ------ | ------------------------------------------------- | --- |
+| **架构** | Plan-Execute-Replan、ReAct Agent、Eino Graph        | 高   |
+| **工具** | MCP 协议、Tool Calling、JSON Schema 推断、SSE 流式         | 高   |
+| **模型** | DeepSeek V3/Quick、豆包 Embedding、Model Factory 单例   | 中   |
+| **数据** | Milvus RAG、FloatVector 类型转换、向量检索、2048 维           | 高   |
+| **并发** | GMP 调度、sync.RWMutex、context.Context、超时控制          | 中   |
+| **部署** | Kubernetes HPA、StatefulSet、Ingress、metrics-server | 中   |
+| **框架** | Eino（compose/planexecute/react）、Gin 中间件           | 高   |
+| **调试** | pprof 火焰图、heap profile、流式 SSE 预读机制                | 低   |
 
 ---
-
-
 
 ## 1. 项目背景与架构
 
@@ -175,60 +210,64 @@ watchTower 是一个 **AI 驱动的智能运维平台**，核心能力：
 
 ### 1.2 核心技术栈
 
-| 层级 | 技术选型 |
-|------|----------|
-| 语言 | Go 1.21+ |
-| Web 框架 | Gin |
-| AI 框架 | CloudWeGene Eino |
-| AI 模型 | DeepSeek V3 (思考) / DeepSeek Quick (快) / 豆包 Embedding |
-| 向量数据库 | Milvus |
-| 监控数据源 | Prometheus HTTP API |
-| 日志采集 | 腾讯云 CLS (MCP 协议) |
-| 容器编排 | Kubernetes + Kind |
-| 配置管理 | Viper |
+
+| 层级     | 技术选型                                                 |
+| ------ | ---------------------------------------------------- |
+| 语言     | Go 1.21+                                             |
+| Web 框架 | Gin                                                  |
+| AI 框架  | CloudWeGene Eino                                     |
+| AI 模型  | DeepSeek V3 (思考) / DeepSeek Quick (快) / 豆包 Embedding |
+| 向量数据库  | Milvus                                               |
+| 监控数据源  | Prometheus HTTP API                                  |
+| 日志采集   | 腾讯云 CLS (MCP 协议)                                     |
+| 容器编排   | Kubernetes + Kind                                    |
+| 配置管理   | Viper                                                |
+
 
 ### 1.3 关键文件清单
 
-| 文件 | 说明 |
-|------|------|
-| `ai/tools/query_metric_alerts.go` | Prometheus 查询工具 |
-| `ai/tools/query_log.go` | CLS MCP 日志查询 |
-| `ai/tools/query_internal_docs.go` | 内部文档 RAG 检索 |
-| `ai/agent/plan_execute_replan/` | Plan-Execute-Replan 智能体 |
-| `ai/agent/chat_workflow/orchestration.go` | Chat + RAG 工作流 |
-| `ai/agent/chat_workflow/flow.go` | ReAct Agent 配置 |
-| `ai/agent/chat_workflow/prompt.go` | 提示词模板 |
-| `controller/chat/chat_v1_ai_ops.go` | AI-Ops HTTP 处理器 |
-| `controller/chat/chat_v1_chat.go` | 非流式 Chat |
-| `controller/chat/chat_v1_chatStream.go` | 流式 Chat SSE |
-| `model/model_factory.go` | 模型工厂（单例，GetGlobalFactory） |
-| `common/milvus/milvusClient.go` | Milvus 客户端初始化 |
-| `common/milvus/retriver.go` | 向量检索 + FloatVector 转换 |
-| `common/log_callback/log_callback.go` | Eino 全链路回调 |
-| `mem/mem.go` | 对话历史内存（滑动窗口） |
-| `ai/skills/loader.go` | Skills 系统（YAML frontmatter 解析） |
-| `k8s/deploy/06-mock-prometheus.yml` | Mock Prometheus K8s 部署 |
-| `k8s/deploy/07-watchtower.yml` | watchTower 后端 K8s 部署 |
-| `k8s/deploy/08-hpa.yml` | HPA 配置 |
-| `docker/docker-compose.yml` | 本地开发环境 |
+
+| 文件                                        | 说明                             |
+| ----------------------------------------- | ------------------------------ |
+| `ai/tools/query_metric_alerts.go`         | Prometheus 查询工具                |
+| `ai/tools/query_log.go`                   | CLS MCP 日志查询                   |
+| `ai/tools/query_internal_docs.go`         | 内部文档 RAG 检索                    |
+| `ai/agent/plan_execute_replan/`           | Plan-Execute-Replan 智能体        |
+| `ai/agent/chat_workflow/orchestration.go` | Chat + RAG 工作流                 |
+| `ai/agent/chat_workflow/flow.go`          | ReAct Agent 配置                 |
+| `ai/agent/chat_workflow/prompt.go`        | 提示词模板                          |
+| `controller/chat/chat_v1_ai_ops.go`       | AI-Ops HTTP 处理器                |
+| `controller/chat/chat_v1_chat.go`         | 非流式 Chat                       |
+| `controller/chat/chat_v1_chatStream.go`   | 流式 Chat SSE                    |
+| `model/model_factory.go`                  | 模型工厂（单例，GetGlobalFactory）      |
+| `common/milvus/milvusClient.go`           | Milvus 客户端初始化                  |
+| `common/milvus/retriver.go`               | 向量检索 + FloatVector 转换          |
+| `common/log_callback/log_callback.go`     | Eino 全链路回调                     |
+| `mem/mem.go`                              | 对话历史内存（滑动窗口）                   |
+| `ai/skills/loader.go`                     | Skills 系统（YAML frontmatter 解析） |
+| `k8s/deploy/06-mock-prometheus.yml`       | Mock Prometheus K8s 部署         |
+| `k8s/deploy/07-watchtower.yml`            | watchTower 后端 K8s 部署           |
+| `k8s/deploy/08-hpa.yml`                   | HPA 配置                         |
+| `docker/docker-compose.yml`               | 本地开发环境                         |
+
 
 ### 1.4 数据流架构图
 
 ```
-                          watchTower AI Ops 平台
+                         watchTower AI Ops 平台
 +-----------------------------------------------------------------------+
-|                                                                        |
-|  Prometheus                     +---------------------+                   |
-|  (告警数据) --> HTTP API --> | query_metric        | ----+            |
-|                                | _alerts tool        |    |            |
-|                                +---------------------+    v            |
-|                                                           +--------+  |
-|  Tencent CLS                 +---------------------+    | Plan-   |  |
-|  (日志数据) --> MCP -----> | GetLogMcpTool()    | -> | Execute  |  |
-|                                +---------------------+    | -Replan  |  |
-|                                                           | Agent    |  |
-|  内部文档 --> Milvus --> RAG Retriever ------------>    +--------+  |
-|                                                           (DeepSeek)  |
+|                                                                       |
+|  [Prometheus]                    query_metric_alerts                  |
+|   告警数据      --HTTP API-->    tool                                 |
+|                                   |                                   |
+|  [Tencent CLS]                    GetLogMcpTool()                    |
+|   日志数据      -----MCP------>   tool                                 |
+|                                   |                                   |
+|  [内部文档]                        |                                   |
+|     |                             |                                   |
+|     v                             v                                   |
+|  Milvus  -->  RAG Retriever  -->  Plan-Execute-Replan Agent  --> DeepSeek LLM
+|                                                                       |
 +-----------------------------------------------------------------------+
 ```
 
@@ -239,48 +278,42 @@ watchTower 是一个 **AI 驱动的智能运维平台**，核心能力：
 ### 2.1 整体数据流图
 
 ```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                              本地开发环境                                        │
-│                                                                              │
-│   ┌──────────┐      ┌──────────────────────────────────────────────────┐   │
-│   │ Prometheus│      │              watchTower Backend                    │   │
-│   │  Mock     │      │                                                    │   │
-│   │ :9090     │      │   ┌──────────────┐   ┌───────────────────────┐  │   │
-│   └────┬─────┘      │   │   /api/ai-ops │──▶│ Plan-Execute-Replan   │  │   │
-│        │            │   └──────────────┘   │      Agent             │  │   │
-│        │ HTTP        │                      │                       │  │   │
-│        │ GET         │                      │  Planner (思考模型)   │  │   │
-│        │ /api/v1/    │                      │  Executor (快模型)     │  │   │
-│        │ alerts      │                      │  Replanner (思考模型)  │  │   │
-│        │             │                      └───────────┬───────────┘  │   │
-│        │             │        GET /api/v1/alerts         │              │   │
-│        │             │              ┌────────────────────┘              │   │
-│        │             │              ▼                                   │   │
-│        │             │   ┌─────────────────────────────────┐           │   │
-│        │             │   │  query_metric_alerts Tool        │           │   │
-│        │             │   │  tools/query_metric_alerts.go    │           │   │
-│        │             │   └──────────────┬──────────────────┘           │   │
-│        │             │                  │  HTTP GET                     │   │
-└────────┼─────────────┘                  ▼                               │   │
-         │                                 │                               │   │
-         └─────────────────────────────────┘                               │   │
-                                    http://localhost:9090                    │
-└────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              本地开发环境                                     │
+│                                                                             │
+│  ┌──────────────┐           ┌─────────────────────────────────────────┐     │
+│  │  Prometheus  │           │            watchTower Backend           │     │
+│  │    Mock      │           │                                         │     │
+│  │  :9090       │           │  ┌───────────┐    ┌─────────────────┐   │     │
+│  └──────┬───────┘           │  │/api/ai-ops│───▶│ Plan-Execute    │   │     │
+│         │ HTTP GET          │  └───────────┘    │   -Replan       │   │     │
+│         │ /api/v1/alerts    │                   │   Agent         │   │     │
+│         │                   │                   └────────┬────────┘   │     │
+│         │                   │                            │            │     │
+│         │                   │                   GET /api/v1/alerts    │     │
+│         │                   │                            │            │     │
+│         │                   │                   ┌────────▼────────┐   │     │
+│         │                   │                   │query_metric_    │   │     │
+│         │                   │                   │ alerts tool     │   │     │
+│         └───────────────────┼───────────────────┴────────┬────────┘   │     │
+│                             │                      HTTP GET           │     │
+│                             └──────────────────▶  :9090               │     │
+└─────────────────────────────────────────────────────────────────────────────┘
 
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                              K8s 生产环境                                        │
-│                                                                              │
-│   ┌──────────────────┐          ┌────────────────────────────────────────┐  │
-│   │ mock-prometheus  │          │            watchtower namespace         │  │
-│   │ Service:         │          │                                        │  │
-│   │ mock-prometheus  │  DNS     │  watchtower-backend Deployment (2副本)  │  │
-│   │ -svc.watchtower  │◀────────▶│                                        │  │
-│   │ :9090            │          │  ConfigMap 注入配置:                    │  │
-│   └──────────────────┘          │    prometheus.base_url =               │  │
-│                                 │    "http://mock-prometheus-svc.        │  │
-│                                 │     watchtower:9090"                   │  │
-│                                 └────────────────────────────────────────┘  │
-└──────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              K8s 生产环境                                    │
+│                                                                             │
+│  ┌────────────────────┐          ┌────────────────────────────────────┐     │
+│  │ mock-prometheus    │  DNS     │      watchtower namespace          │     │
+│  │ Service:           │◀────────▶│                                    │     │
+│  │ mock-prometheus-   │          │  watchtower-backend Deployment     │     │
+│  │ svc.watchtower     │          │  (2 副本)                           │     │
+│  │ :9090              │          │                                    │     │
+│  └────────────────────┘          │  ConfigMap: prometheus.base_url =  │     │
+│                                  │  "http://mock-prometheus-svc.      │     │
+│                                  │   watchtower:9090"                 │     │
+│                                  └────────────────────────────────────┘     │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### 2.2 查询 API 详解
@@ -360,13 +393,15 @@ docker-compose up -d mock-prometheus
 
 Mock 服务模拟 5 类告警：
 
-| 告警名称 | 含义 |
-|----------|------|
-| HighCPUUsage | CPU 使用率超过 80% |
-| HighMemoryUsage | 内存使用率超过 85% |
-| DiskSpaceRunningLow | 磁盘空间不足 |
-| APIHighErrorRate | API 错误率超过 5% |
-| ServiceDown | 服务不可用 |
+
+| 告警名称                | 含义            |
+| ------------------- | ------------- |
+| HighCPUUsage        | CPU 使用率超过 80% |
+| HighMemoryUsage     | 内存使用率超过 85%   |
+| DiskSpaceRunningLow | 磁盘空间不足        |
+| APIHighErrorRate    | API 错误率超过 5%  |
+| ServiceDown         | 服务不可用         |
+
 
 ### 2.4 K8s 部署流程
 
@@ -535,7 +570,7 @@ func GetLogMcpTool() ([]tool.BaseTool, error) {
 **配置：** `etc/conf.yml`
 
 ```yaml
-mcp_url: "https://mcp-api.tencent-cloud.com/sse/55f02ffd72504e19"
+mcp_url: "https://mcp-api.tencent-cloud.com/sse/${CLS_MCP_TOKEN}"
 ```
 
 ### 3.5 日志查询完整调用链
@@ -692,7 +727,7 @@ curl http://localhost:9090/api/v1/rules | jq
 
 ```bash
 kubectl exec -it -n watchtower <pod> -- printenv | grep MCP_URL
-curl -v https://mcp-api.tencent-cloud.com/sse/55f02ffd72504e19
+curl -v https://mcp-api.tencent-cloud.com/sse/${CLS_MCP_TOKEN}
 kubectl logs -n watchtower <pod> -c backend | grep -i mcp
 ```
 
@@ -766,12 +801,14 @@ Eino 是字节跳动开源的 **AI 应用开发框架**，类似 LangChain 的 G
 
 **watchTower 中的应用：**
 
-| 组件 | Eino 组件 | 代码位置 |
-|------|-----------|----------|
-| 对话工作流 | `compose.NewGraph()` | `ai/agent/chat_workflow/orchestration.go` |
-| AI 智能体 | `planexecute.New()` | `ai/agent/plan_execute_replan/workAgent_planExecuteReplan.go` |
-| 工具系统 | `utils.InferOptionableTool()` | `ai/tools/query_metric_alerts.go` |
-| RAG 检索 | `milvusClient.Search()` | `common/milvus/retriver.go` |
+
+| 组件     | Eino 组件                       | 代码位置                                                          |
+| ------ | ----------------------------- | ------------------------------------------------------------- |
+| 对话工作流  | `compose.NewGraph()`          | `ai/agent/chat_workflow/orchestration.go`                     |
+| AI 智能体 | `planexecute.New()`           | `ai/agent/plan_execute_replan/workAgent_planExecuteReplan.go` |
+| 工具系统   | `utils.InferOptionableTool()` | `ai/tools/query_metric_alerts.go`                             |
+| RAG 检索 | `milvusClient.Search()`       | `common/milvus/retriver.go`                                   |
+
 
 **Graph 编排模式：**
 
@@ -797,21 +834,25 @@ out, err := graph.Invoke(ctx, input)
 
 **节点类型对比：**
 
-| 节点类型 | 特点 | watchTower 示例 |
-|----------|------|----------------|
-| Lambda | 自定义函数逻辑 | `InputToRag`, `InputToChat` |
-| ChatTemplate | 提示词模板组装 | `ChatTemplate` |
-| Retriever | 向量检索 | `MilvusRetriever` |
-| Agent | ReAct 智能体 | `ReactAgent` |
+
+| 节点类型         | 特点        | watchTower 示例               |
+| ------------ | --------- | --------------------------- |
+| Lambda       | 自定义函数逻辑   | `InputToRag`, `InputToChat` |
+| ChatTemplate | 提示词模板组装   | `ChatTemplate`              |
+| Retriever    | 向量检索      | `MilvusRetriever`           |
+| Agent        | ReAct 智能体 | `ReactAgent`                |
+
 
 **与 LangChain 对比：**
 
-| 维度 | Eino | LangChain |
-|------|------|-----------|
-| 语言 | Go（高性能） | Python（生态丰富） |
-| 并发 | 原生并发支持 | 需 asyncio |
-| 类型安全 | 编译期检查 | 运行时检查 |
-| 部署 | 单二进制 | 需要 Python 环境 |
+
+| 维度   | Eino    | LangChain    |
+| ---- | ------- | ------------ |
+| 语言   | Go（高性能） | Python（生态丰富） |
+| 并发   | 原生并发支持  | 需 asyncio    |
+| 类型安全 | 编译期检查   | 运行时检查        |
+| 部署   | 单二进制    | 需要 Python 环境 |
+
 
 #### 题目 6-2：Eino Graph 的触发模式
 
@@ -849,12 +890,14 @@ START
 
 **ReAct vs Plan-Execute-Replan：**
 
-| 维度 | ReAct | Plan-Execute-Replan |
-|------|-------|---------------------|
-| 规划能力 | 单步决策 | 先规划，再执行 |
-| 模型分工 | 单一模型 | 思考模型 + 快模型 |
-| 适用场景 | 简单问答 | 复杂多步骤任务 |
-| token 消耗 | 高（每步都思考） | 低（规划一次，执行多次） |
+
+| 维度       | ReAct    | Plan-Execute-Replan |
+| -------- | -------- | ------------------- |
+| 规划能力     | 单步决策     | 先规划，再执行             |
+| 模型分工     | 单一模型     | 思考模型 + 快模型          |
+| 适用场景     | 简单问答     | 复杂多步骤任务             |
+| token 消耗 | 高（每步都思考） | 低（规划一次，执行多次）        |
+
 
 **Plan-Execute-Replan 三阶段：**
 
@@ -1085,13 +1128,15 @@ MCP 统一协议：AI Agent --> MCP Client --> MCP Server --> 各种数据源
 
 **MCP 核心概念：**
 
-| 概念 | 说明 |
-|------|------|
-| Host | AI 应用（如 watchTower） |
-| Client | Host 中的 MCP 客户端 SDK |
-| Server | 数据源/工具提供者 |
+
+| 概念        | 说明                      |
+| --------- | ----------------------- |
+| Host      | AI 应用（如 watchTower）     |
+| Client    | Host 中的 MCP 客户端 SDK     |
+| Server    | 数据源/工具提供者               |
 | Transport | 通信层（stdio / SSE / HTTP） |
-| Schema | 工具定义（JSON Schema 格式） |
+| Schema    | 工具定义（JSON Schema 格式）    |
+
 
 **MCP 通信协议：**
 
@@ -1115,11 +1160,12 @@ MCP 统一协议：AI Agent --> MCP Client --> MCP Server --> 各种数据源
 
 **SSE vs stdio：**
 
-| 传输方式 | 适用场景 | watchTower 用法 |
-|----------|----------|----------------|
-| stdio | 本地进程通信 | 桌面应用 |
-| SSE | 服务端推送 | **watchTower 使用**（日志查询结果流式返回）|
-| HTTP | 简单请求 | 需要轮询 |
+
+| 传输方式  | 适用场景   | watchTower 用法                 |
+| ----- | ------ | ----------------------------- |
+| stdio | 本地进程通信 | 桌面应用                          |
+| SSE   | 服务端推送  | **watchTower 使用**（日志查询结果流式返回） |
+| HTTP  | 简单请求   | 需要轮询                          |
 
 ---
 
@@ -1182,12 +1228,14 @@ for iter.Next(ctx) {  // 使用 ctx 判断是否取消
 
 **Context 最佳实践：**
 
-| 实践 | 说明 |
-|------|------|
-| **defer cancel** | 防止泄露 |
-| **不存储在结构体** | context 只在函数参数中传递 |
-| **Value 只用于横切关注点** | 如 trace_id、client_id |
-| **超时时间合理设置** | chat=3min, ai-ops=1min, http=20s |
+
+| 实践                 | 说明                               |
+| ------------------ | -------------------------------- |
+| **defer cancel**   | 防止泄露                             |
+| **不存储在结构体**        | context 只在函数参数中传递                |
+| **Value 只用于横切关注点** | 如 trace_id、client_id             |
+| **超时时间合理设置**       | chat=3min, ai-ops=1min, http=20s |
+
 
 #### 题目 6-8：Sync 同步原语的使用场景
 
@@ -1263,11 +1311,13 @@ func (s *SimpleMemory) SetMessages(msg *schema.Message) {
 
 **四种锁对比：**
 
-| 锁类型 | 适用场景 | watchTower 示例 |
-|--------|----------|----------------|
-| Mutex | 写冲突保护 | 全局 memory map |
-| RWMutex | 读多写少 | 内存实例消息列表 |
-| Once | 一次性初始化 | 单例工厂、skills 加载 |
+
+| 锁类型     | 适用场景   | watchTower 示例  |
+| ------- | ------ | -------------- |
+| Mutex   | 写冲突保护  | 全局 memory map  |
+| RWMutex | 读多写少   | 内存实例消息列表       |
+| Once    | 一次性初始化 | 单例工厂、skills 加载 |
+
 
 #### 题目 6-9：Go Agent 中的错误处理模式
 
@@ -1533,6 +1583,7 @@ func lookAheadStreamToolCallChecker(_ context.Context, sr *schema.StreamReader[*
 ```
 
 **关键设计：**
+
 - `MaxStep: 25`：ReAct Agent 最多执行 25 步工具调用，防止死循环
 - `lookAheadStreamToolCallChecker`：DeepSeek/Claude 等模型会在工具调用前输出短前缀文本，此函数预读最多 20 个 chunk 检测工具调用，返回 `true` 后流式输出给用户
 
@@ -1568,7 +1619,7 @@ config.ToolsConfig.Tools = append(config.ToolsConfig.Tools,
 
 **工厂模式实现：**
 
-```go
+​```go
 // model/model_factory.go
 const (
     DsThinkChatModelType = iota + 1  // = 1, 思考模型
@@ -1717,11 +1768,13 @@ G (Goroutine)              M (Machine/Thread)             P (Processor)
 
 **与线程的对比：**
 
-| 维度 | Goroutine | 线程 |
-|------|-----------|------|
-| 创建成本 | ~2KB | ~1-8MB |
+
+| 维度   | Goroutine  | 线程            |
+| ---- | ---------- | ------------- |
+| 创建成本 | ~2KB       | ~1-8MB        |
 | 切换成本 | 用户态 ~200ns | 内核态 ~10-100μs |
-| 最大数量 | 数十万 | 数千 |
+| 最大数量 | 数十万        | 数千            |
+
 
 **watchTower 中的体现：**
 
@@ -1761,12 +1814,14 @@ go tool pprof -http=:8080 cpu.prof
 
 **常见泄漏场景：**
 
-| 场景 | 指标表现 | 根因 |
-|------|----------|------|
-| Goroutine 泄漏 | goroutine 数量持续增长 | channel 阻塞、for 循环未退出 |
-| 切片持续增长 | 内存持续上涨 | append 未截断、滑动窗口失效 |
-| Map 持续增长 | 内存持续上涨 | 未清理过期 key |
-| Timer 未释放 | 内存缓慢增长 | `time.Timer` 未 `Stop()` |
+
+| 场景           | 指标表现             | 根因                      |
+| ------------ | ---------------- | ----------------------- |
+| Goroutine 泄漏 | goroutine 数量持续增长 | channel 阻塞、for 循环未退出    |
+| 切片持续增长       | 内存持续上涨           | append 未截断、滑动窗口失效       |
+| Map 持续增长     | 内存持续上涨           | 未清理过期 key               |
+| Timer 未释放    | 内存缓慢增长           | `time.Timer` 未 `Stop()` |
+
 
 #### 题目 6-16：Slice 扩容与 Map 底层实现
 
@@ -1918,14 +1973,126 @@ if err != nil {
 - **服务发现**：Kubernetes、Consul、EC2 等
 - **AlertManager**：独立的告警处理组件，支持去重、分组、抑制
 
+---
+
+#### 端到端案例：从服务报错到 watchTower 分析的全流程
+
+**场景：** 线上 CPU 使用率突然飙高，触发告警。
+
+**Step 1 — 监控指标采集（Prometheus Pull）**
+
+```
+服务实例 (10.0.0.5:9100)
+     │
+     │  node_cpu_usage > 0.8 持续 5 分钟
+     ▼
+被监控的机器上运行`node-exporter`暴露指标（9100端口的‘/metrics’接口）
+     │  拉的服务器指标：CPU、内存、磁盘等
+     │  每 15s 拉取一次 (scrape_interval)
+     ▼
+Prometheus Server
+     │
+     │  匹配告警规则: cpu_usage > 0.8 && rate(node_cpu[5m]) > 0.8
+     ▼
+AlertManager ←── 触发 firing 告警 (HighCPUUsage)
+```
+
+**Step 2 — watchTower 查询告警（查询接口：HTTP GET /api/v1/alerts）**
+
+```
+用户: "CPU 告警怎么解决？"
+
+Plan-Execute-Replan Agent
+     │
+     │  Executor 调用 query_prometheus_alerts 工具
+     │  GET http://mock-prometheus-svc.watchtower:9090/api/v1/alerts
+     ▼
+Prometheus 返回 JSON：
+{
+  "status": "success",
+  "data": {
+    "alerts": [{
+      "labels": {
+        "alertname": "HighCPUUsage",
+        "instance": "10.0.0.5:9100",
+        "severity": "warning"
+      },
+      "annotations": {
+        "summary": "实例 CPU 使用率过高",
+        "description": "10.0.0.5:9100 上 CPU 使用率已超过 80% 持续 5 分钟"
+      },
+      "state": "firing",
+      "activeAt": "2026-05-20T09:00:00Z",
+      "value": "8.5e-01"
+    }]
+  }
+}
+```
+
+**Step 3 — 完整数据流图**
+
+```
+┌────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                │
+│  端到端告警分析流程                                                               │
+│                                                                                │
+│  ┌──────────────┐     ┌──────────────┐     ┌─────────────┐                     │
+│  │ 服务实例      │ ──▶ │ node-exporter│ ──▶ │  Prometheus │                      │
+│  │ 10.0.0.5     │     │  :9100 暴露  │      │  每15s拉取   │                    │
+│  └──────────────┘     └──────────────┘     └──────┬──────┘                     │
+│                                                                                │
+│                                      匹配告警规则 → HighCPUUsage firing          │
+│                                                                                │
+│                                              ┌─────▼──────┐                    │
+│                                              │AlertManager│                    │
+│                                              └────────────┘                    │
+│                                                                                │
+└────────────────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────────┐
+│  watchTower Backend                                                            │
+│  用户: "CPU 告警怎么处理？"                                                       │
+│       │                                                                        │
+│       ▼                                                                        │
+│                                                                                │
+│  ┌─────────────────────────────────────────────────────────┐                   │
+│  │              Plan-Execute-Replan Agent                  │                   │
+│                                                                                │
+│  │  1. Planner (思考模型): 推理需查 Prometheus 告警           │                   │
+│  │       │                                                 │                   │
+│  │       ▼                                                 │                   │
+│  │  2. Executor (快模型): 调用 query_prometheus_alerts      │                    │
+│                                                                                │
+│  │  工具返回: HighCPUUsage | 10.0.0.5:9100 | firing         │                   │
+│  │       │                                                 │                   │
+│  │       ▼                                                 │                   │
+│  │  3. Replanner (思考模型): 生成处置建议                     │                   │
+│  └─────────────────────────────────────────────────────────┘                   │
+│                                                                                │
+│       │                                                                        │
+│       ▼                                                                        │
+│  AI 回复: "10.0.0.5 CPU 超 80%，建议 kubectl top / scale"                        │
+└────────────────────────────────────────────────────────────────────────────────┘
+```
+
+**核心代码路径：**
+
+| 步骤 | 文件 | 关键代码 |
+|------|------|----------|
+| Prometheus 查询 | `ai/tools/query_metric_alerts.go` | `GET /api/v1/alerts` → `PrometheusAlert` |
+| 工具注册 | `ai/tools/query_metric_alerts.go` | `NewPrometheusAlertsQueryTool()` |
+| Agent 调用 | `ai/agent/plan_execute_replan/workAgent_planExecuteReplan.go` | `Executor` 调用工具 |
+
+
 **与 Zabbix 的区别：**
 
-| 维度 | Prometheus | Zabbix |
-|------|------------|--------|
-| 架构 | 拉模式 | 推/拉混合 |
-| 数据模型 | 多维度标签 | 模板/主机 |
-| 查询语言 | PromQL | LLD + 函数 |
-| 存储 | TSDB | MySQL/PostgreSQL |
+
+| 维度   | Prometheus | Zabbix           |
+| ---- | ---------- | ---------------- |
+| 架构   | 拉模式        | 推/拉混合            |
+| 数据模型 | 多维度标签      | 模板/主机            |
+| 查询语言 | PromQL     | LLD + 函数         |
+| 存储   | TSDB       | MySQL/PostgreSQL |
+
 
 #### 题目 7-2：Prometheus 高可用方案
 
@@ -1975,13 +2142,15 @@ topk(5,
 
 **关键函数：**
 
-| 函数 | 用途 |
-|------|------|
-| `rate()` | 计算每秒增长率 |
-| `irate()` | 计算即时增长率 |
-| `increase()` | 计算增量 |
-| `predict_linear()` | 线性预测 |
+
+| 函数                     | 用途         |
+| ---------------------- | ---------- |
+| `rate()`               | 计算每秒增长率    |
+| `irate()`              | 计算即时增长率    |
+| `increase()`           | 计算增量       |
+| `predict_linear()`     | 线性预测       |
 | `histogram_quantile()` | 计算分位数（P99） |
+
 
 #### 题目 7-4：如何定位 CPU 突增问题
 
@@ -2004,12 +2173,14 @@ go_goroutines{service="<service>"}
 
 **可能原因：**
 
-| 原因 | 指标表现 |
-|------|----------|
-| 突发流量 | QPS 上升，goroutine 增多 |
+
+| 原因     | 指标表现                      |
+| ------ | ------------------------- |
+| 突发流量   | QPS 上升，goroutine 增多       |
 | GC STW | go_gc_duration_seconds 突增 |
-| 死循环 | 单线程 CPU 100%，其他线程空闲 |
-| 慢查询 | DB 查询延迟上升，连接池打满 |
+| 死循环    | 单线程 CPU 100%，其他线程空闲       |
+| 慢查询    | DB 查询延迟上升，连接池打满           |
+
 
 ### 7.2 日志采集相关面试题
 
@@ -2028,11 +2199,13 @@ go_goroutines{service="<service>"}
 
 **选型对比：**
 
-| 组件 | ELK | Loki | CLS (云服务) |
-|------|-----|------|--------------|
-| 存储成本 | 高 | 低 | 中 |
-| 查询延迟 | 毫秒级 | 秒级 | 秒级 |
-| 扩展性 | 自管理复杂 | 简单 | 云托管 |
+
+| 组件   | ELK   | Loki | CLS (云服务) |
+| ---- | ----- | ---- | --------- |
+| 存储成本 | 高     | 低    | 中         |
+| 查询延迟 | 毫秒级   | 秒级   | 秒级        |
+| 扩展性  | 自管理复杂 | 简单   | 云托管       |
+
 
 **关键设计决策：**
 
@@ -2101,11 +2274,13 @@ watchtower-backend Pod
 
 **Service 类型对比：**
 
-| 类型 | 访问范围 | 负载均衡 | 适用场景 |
-|------|----------|----------|----------|
-| ClusterIP | 集群内部 | kube-proxy | 内部服务 |
-| NodePort | 节点端口 | kube-proxy | 开发/测试 |
-| LoadBalancer | 外部云 LB | 云厂商 | 生产环境 |
+
+| 类型           | 访问范围   | 负载均衡       | 适用场景  |
+| ------------ | ------ | ---------- | ----- |
+| ClusterIP    | 集群内部   | kube-proxy | 内部服务  |
+| NodePort     | 节点端口   | kube-proxy | 开发/测试 |
+| LoadBalancer | 外部云 LB | 云厂商        | 生产环境  |
+
 
 #### 题目 7-8：HPA 工作原理
 
@@ -2161,13 +2336,15 @@ Prometheus --> AlertManager --> Webhook 接收 --> 告警处理服务
 
 **技术选型：**
 
-| 组件 | 选型 | 理由 |
-|------|------|------|
+
+| 组件       | 选型                  | 理由            |
+| -------- | ------------------- | ------------- |
 | AI Agent | Plan-Execute-Replan | 复杂任务需要规划，动态调整 |
-| 规划模型 | DeepSeek V3 (思考) | 强推理能力，复杂分析 |
-| 执行模型 | DeepSeek Quick (快) | 简单工具调用，低延迟 |
-| 向量数据库 | Milvus | 开源，支持分布式 |
-| 日志查询 | Tencent CLS (MCP) | 托管服务，免运维 |
+| 规划模型     | DeepSeek V3 (思考)    | 强推理能力，复杂分析    |
+| 执行模型     | DeepSeek Quick (快)  | 简单工具调用，低延迟    |
+| 向量数据库    | Milvus              | 开源，支持分布式      |
+| 日志查询     | Tencent CLS (MCP)   | 托管服务，免运维      |
+
 
 #### 题目 7-10：SRE 场景题
 
@@ -2198,12 +2375,14 @@ kubectl exec -it -n watchtower <pod> -- curl -s http://localhost:6872/debug/ppro
 
 **常见根因场景：**
 
-| 场景 | 指标表现 | 快速修复 |
-|------|----------|----------|
-| 突发流量 | QPS 10x，请求排队 | 扩容 |
-| 内存泄漏 | 内存持续上涨，GC 频繁 | 重启 Pod |
-| 数据库慢查询 | DB 连接池打满 | 杀掉慢查询 |
+
+| 场景       | 指标表现              | 快速修复    |
+| -------- | ----------------- | ------- |
+| 突发流量     | QPS 10x，请求排队      | 扩容      |
+| 内存泄漏     | 内存持续上涨，GC 频繁      | 重启 Pod  |
+| 数据库慢查询   | DB 连接池打满          | 杀掉慢查询   |
 | AI 模型响应慢 | 请求堆积，goroutine 增多 | 限流 + 降级 |
+
 
 #### 题目 7-11：职业规划与项目深度
 
@@ -2233,7 +2412,7 @@ for iteration := 0; iteration < maxIterations; iteration++ {
 
 **技术难点：**
 
-- 如何让 Replanner 正确判断"分析是否充分"
+- 如何让 Replanner 正确判断"分析是否充分" (①让LLM[Replanner]判断是否足以回答用户问题"为什么服务挂了"？如果不能，还需要什么信息？" ②配置规则，如几个计划点是否已达标)
 - 如何避免无限循环（设置最大迭代次数 20）
 - 如何处理部分工具调用失败（优雅降级）
 - 如何优化工具调用的并行度（减少等待时间）
@@ -2246,28 +2425,28 @@ for iteration := 0; iteration < maxIterations; iteration++ {
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Tool Calling System                             │
+│                    Tool Calling System                          │
 ├─────────────────────────────────────────────────────────────────┤
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
-│  │ Tool Schema  │  │ Tool Registry│  │   Executor   │          │
-│  │  定义接口     │  │   工具注册   │  │   调用执行   │          │
-│  └──────────────┘  └──────────────┘  └──────────────┘          │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐           │
+│  │ Tool Schema  │  │ Tool Registry│  │   Executor   │           │
+│  │  定义接口     │  │   工具注册     │  │   调用执行    │           │
+│  └──────────────┘  └──────────────┘  └──────────────┘           │
 │         │                 │                   │                 │
 │         └─────────────────┼───────────────────┘                 │
 │                           ▼                                     │
 │  ┌──────────────────────────────────────────────────────────┐   │
-│  │                    Tool Manager                            │   │
+│  │                    Tool Manager                          │   │
 │  │  - Register(tool)                                        │   │
 │  │  - GetTool(name)                                         │   │
-│  │  - CallTool(name, params)                               │   │
+│  │  - CallTool(name, params)                                │   │
 │  └──────────────────────────────────────────────────────────┘   │
 │                           ▼                                     │
 │  ┌──────────────────────────────────────────────────────────┐   │
-│  │                     Agent Loop                             │   │
-│  │  while not done:                                          │   │
-│  │    response = llm.Generate(prompt + context)              │   │
+│  │                     Agent Loop                           │   │
+│  │  while not done:                                         │   │
+│  │    response = llm.Generate(prompt + context)             │   │
 │  │    if response.has_tool_call():                          │   │
-│  │      result = tool_manager.Call(tool_call)                 │   │
+│  │      result = tool_manager.Call(tool_call)               │   │
 │  │      context += result                                   │   │
 │  └──────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────┘
@@ -2296,13 +2475,15 @@ func (m *ToolManager) Call(ctx context.Context, name string, args map[string]any
 
 **错误处理策略：**
 
-| 错误类型 | 处理策略 | 示例 |
-|----------|----------|------|
-| 参数验证失败 | 返回错误，不重试 | invalid status |
-| 网络超时 | 重试 3 次，指数退避 | Prometheus 不可达 |
-| 工具 panic | 捕获并返回错误 | 内部 panic |
-| 工具不存在 | 返回错误 | 未知工具名 |
-| 超时 | 取消上下文，返回超时错误 | 超过 30s |
+
+| 错误类型     | 处理策略         | 示例             |
+| -------- | ------------ | -------------- |
+| 参数验证失败   | 返回错误，不重试     | invalid status |
+| 网络超时     | 重试 3 次，指数退避  | Prometheus 不可达 |
+| 工具 panic | 捕获并返回错误      | 内部 panic       |
+| 工具不存在    | 返回错误         | 未知工具名          |
+| 超时       | 取消上下文，返回超时错误 | 超过 30s         |
+
 
 #### 题目 7-13：如何在生产环境中调试 AI Agent
 
@@ -2469,32 +2650,36 @@ StatefulSet:
 
 ## 附录 A：相关文档链接
 
-| 文档 | 链接 |
-|------|------|
-| Prometheus 官方文档 | https://prometheus.io/docs/introduction/overview/ |
-| Thanos 官方文档 | https://thanos.io/ |
-| MCP 协议规范 | https://modelcontextprotocol.io/ |
-| 腾讯云 CLS | https://cloud.tencent.com/document/product/614 |
-| K8s HPA 文档 | https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/ |
-| Eino 框架文档 | https://www.eino.dev/ |
+
+| 文档              | 链接                                                                                                                                                       |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Prometheus 官方文档 | [https://prometheus.io/docs/introduction/overview/](https://prometheus.io/docs/introduction/overview/)                                                   |
+| Thanos 官方文档     | [https://thanos.io/](https://thanos.io/)                                                                                                                 |
+| MCP 协议规范        | [https://modelcontextprotocol.io/](https://modelcontextprotocol.io/)                                                                                     |
+| 腾讯云 CLS         | [https://cloud.tencent.com/document/product/614](https://cloud.tencent.com/document/product/614)                                                         |
+| K8s HPA 文档      | [https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/) |
+| Eino 框架文档       | [https://www.eino.dev/](https://www.eino.dev/)                                                                                                           |
+
 
 ## 附录 B：watchTower 项目关键文件索引
 
-| 功能 | 文件路径 | 关键函数/结构体 |
-|------|----------|----------------|
-| Plan-Execute Agent | `ai/agent/plan_execute_replan/workAgent_planExecuteReplan.go` | `BuildPlanExecuteReplanAgent()` |
-| Chat Workflow | `ai/agent/chat_workflow/orchestration.go` | `compose.NewGraph()` |
-| Prometheus Tool | `ai/tools/query_metric_alerts.go` | `NewPrometheusAlertsQueryTool()` |
-| MCP Log Tool | `ai/tools/query_log.go` | `GetLogMcpTool()` |
-| Milvus Client | `common/milvus/milvusClient.go` | `NewMilvusClient()` |
-| Retriever | `common/milvus/retriver.go` | `floatVectorConverter()` |
-| Model Factory | `model/model_factory.go` | `GetGlobalFactory()` |
-| Skills Loader | `ai/skills/loader.go` | `FormatForPrompt()` |
-| Memory | `mem/mem.go` | `GetSimpleMemory()` |
-| Callback | `common/log_callback/log_callback.go` | `LogCallback()` |
-| Chat Handler | `controller/chat/chat_v1_chat.go` | `Chat()` |
-| Stream Handler | `controller/chat/chat_v1_chatStream.go` | `ChatStream()` |
-| AIOps Handler | `controller/chat/chat_v1_ai_ops.go` | `AIOps()` |
+
+| 功能                 | 文件路径                                                          | 关键函数/结构体                         |
+| ------------------ | ------------------------------------------------------------- | -------------------------------- |
+| Plan-Execute Agent | `ai/agent/plan_execute_replan/workAgent_planExecuteReplan.go` | `BuildPlanExecuteReplanAgent()`  |
+| Chat Workflow      | `ai/agent/chat_workflow/orchestration.go`                     | `compose.NewGraph()`             |
+| Prometheus Tool    | `ai/tools/query_metric_alerts.go`                             | `NewPrometheusAlertsQueryTool()` |
+| MCP Log Tool       | `ai/tools/query_log.go`                                       | `GetLogMcpTool()`                |
+| Milvus Client      | `common/milvus/milvusClient.go`                               | `NewMilvusClient()`              |
+| Retriever          | `common/milvus/retriver.go`                                   | `floatVectorConverter()`         |
+| Model Factory      | `model/model_factory.go`                                      | `GetGlobalFactory()`             |
+| Skills Loader      | `ai/skills/loader.go`                                         | `FormatForPrompt()`              |
+| Memory             | `mem/mem.go`                                                  | `GetSimpleMemory()`              |
+| Callback           | `common/log_callback/log_callback.go`                         | `LogCallback()`                  |
+| Chat Handler       | `controller/chat/chat_v1_chat.go`                             | `Chat()`                         |
+| Stream Handler     | `controller/chat/chat_v1_chatStream.go`                       | `ChatStream()`                   |
+| AIOps Handler      | `controller/chat/chat_v1_ai_ops.go`                           | `AIOps()`                        |
+
 
 ## 附录 C：常用调试命令
 
@@ -2518,3 +2703,196 @@ kubectl get milvus -n watchtower
 kubectl exec -it -n watchtower <pod> -- \
   curl -v http://mock-prometheus-svc.watchtower:9090/api/v1/alerts
 ```
+
+---
+
+## 9. Skill 系统优化：向量相似度按需加载
+
+### 现状问题
+
+当前 `workAgent_planExecuteReplan.go` 中的 skill 注入是**全量加载 + 全量注入**：
+
+```go
+// ai/agent/plan_execute_replan/workAgent_planExecuteReplan.go
+if skillBlock := skills.FormatForPrompt(); skillBlock != "" {
+    query = skillBlock + "\n" + query
+    // (这里未来可以考虑优化成向量相似度匹配对应的skill)
+}
+```
+
+`skills.FormatForPrompt()` 会把所有 skill 的 name + description + content 全部拼接，即使某个 skill 和用户问题完全无关。
+
+**问题：**
+
+- 用户问"MySQL 慢查询"，但 `file_search.md`（文件搜索指南）也被注入，浪费 token
+- 上下文窗口被无关 skill 占据，影响真正的分析质量
+- skill 数量增长后，注入量无上限地膨胀
+
+### 优化方案：向量相似度匹配
+
+**思路：** 用户 query 和每个 skill 的 description 做 embedding 向量相似度，只注入 top-k 最相关的 skill。
+
+```
+用户输入: "CPU 告警怎么处理？"
+
+     │
+     ▼
+Embedding 模型向量化
+     │
+     ▼
+计算与所有 skill description 的余弦相似度
+     │
+     ├── alert_handling.md     → 0.92  ✅ 注入
+     ├── replan_guide.md       → 0.78  ✅ 注入
+     └── file_search.md        → 0.15  ❌ 跳过
+     │
+     ▼
+只注入 top-2 的 skill，大幅减少 token 消耗
+```
+
+### 核心代码实现
+
+**1. 新增 skill 匹配器** `ai/skills/matcher.go`：
+
+```go
+package skills
+
+import (
+	"context"
+	"sort"
+)
+
+// MatchResult 单个 skill 的匹配结果
+type MatchResult struct {
+	Skill  *Skill
+	Score  float64  // 余弦相似度，0~1
+}
+
+// MatchByEmbedding 对用户 query 进行向量化，然后与所有 skill 的 description
+// 做余弦相似度，返回 top-k 最相关的 skill 列表。
+func MatchByEmbedding(ctx context.Context, query string, topK int) []*Skill {
+	// 1. 对 query 做 embedding
+	queryVec := embed(ctx, query)
+
+	// 2. 计算每个 skill 的相似度(不需要存取于向量库，直接比！！)
+	all := LoadSkills()
+	var results []MatchResult
+	for _, skill := range all {
+		descVec := embed(ctx, skill.Description)
+		score := cosineSimilarity(queryVec, descVec)
+		results = append(results, MatchResult{Skill: skill, Score: score})
+	}
+
+	// 3. 排序取 topK
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Score > results[j].Score
+	})
+
+	if topK > len(results) {
+		topK = len(results)
+	}
+	var matched []*Skill
+	for i := 0; i < topK; i++ {
+		if results[i].Score > 0.3 { // 阈值过滤，低相关度 skill 不注入
+			matched = append(matched, results[i].Skill)
+		}
+	}
+	return matched
+}
+
+// cosineSimilarity 计算两个向量的余弦相似度
+func cosineSimilarity(a, b []float32) float64 {
+	dot := float64(0)
+	normA := float64(0)
+	normB := float64(0)
+	for i := range a {
+		dot += float64(a[i]) * float64(b[i])
+		normA += float64(a[i]) * float64(a[i])
+		normB += float64(b[i]) * float64(b[i])
+	}
+	if normA == 0 || normB == 0 {
+		return 0
+	}
+	return dot / (math.Sqrt(normA) * math.Sqrt(normB))
+}
+```
+
+**2. 新增 skill Embedder 封装** `ai/skills/embedder.go`：
+
+```go
+package skills
+
+import (
+	"context"
+	"watchTower/ai/model"
+)
+
+// embed 调用模型工厂的 embedding 模型，对文本进行向量化
+func embed(ctx context.Context, text string) []float32 {
+	factory := model.GetGlobalFactory()
+	embCreator := factory.GetModelCreator(model.EmbeddingModelType)
+	if embCreator == nil {
+		return nil
+	}
+	embModel := embCreator(ctx, nil)
+	vec, err := embModel.EmbedStrings(ctx, []string{text})
+	if err != nil || len(vec) == 0 {
+		return nil
+	}
+	return vec[0]
+}
+```
+
+**3. 修改 `FormatForPrompt` 支持按需注入：**
+
+```go
+// FormatForPromptByQuery 只注入与 query 最相关的 topK 个 skill
+func FormatForPromptByQuery(ctx context.Context, query string, topK int) string {
+	matched := MatchByEmbedding(ctx, query, topK)
+	if len(matched) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("## 已加载的 Skills（按需匹配）\n")
+	for i, skill := range matched {
+		b.WriteString(fmt.Sprintf("\n### Skill %d: %s（相关度: %.2f）\n", i+1, skill.Name, ""))
+		if skill.Description != "" {
+			b.WriteString(fmt.Sprintf("说明: %s\n", skill.Description))
+		}
+		b.WriteString(skill.Content)
+		b.WriteString("\n")
+	}
+	return b.String()
+}
+```
+
+**4. 修改调用方，替换 TODO：**
+
+```go
+// ai/agent/plan_execute_replan/workAgent_planExecuteReplan.go
+import "watchTower/ai/skills"
+
+// 之前：全量注入
+if skillBlock := skills.FormatForPrompt(); skillBlock != "" {
+    query = skillBlock + "\n" + query
+}
+
+// 之后：按需注入（向量相似度 top-2）
+if skillBlock := skills.FormatForPromptByQuery(ctx, query, 2); skillBlock != "" {
+    query = skillBlock + "\n" + query
+}
+```
+
+### 效果对比
+
+| 维度 | 优化前（全量注入） | 优化后（按需注入） |
+|------|------------------|------------------|
+| 每次注入 skill 数 | 全部（3 个） | top-2（按 query 相关度） |
+| token 消耗 | ~800 token/请求 | ~300~500 token/请求 |
+| 相关 skill 命中 | 始终包含，也包含无关的 | 只保留高相关度 |
+| 新增 skill 成本 | 每次请求都注入 | 只在相关时被注入 |
+
+### 面试总结
+
+> "skill 加载最初是全量注入，在 `workAgent_planExecuteReplan.go` 里留了 TODO。后来我把它优化成了向量相似度匹配：用户 query 和每个 skill 的 description 分别做 embedding，计算余弦相似度，只注入 top-2 最相关的 skill。这样每次请求的 token 消耗从 ~800 降到 ~300-500，而且新增 skill 时不会影响所有 query 的上下文大小。"
+

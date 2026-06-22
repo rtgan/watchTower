@@ -16,6 +16,9 @@ require (
 	github.com/mark3labs/mcp-go v0.47.1
 	github.com/milvus-io/milvus-sdk-go/v2 v2.4.2
 	github.com/spf13/viper v1.21.0
+	github.com/tencentcloud/tencentcloud-cls-sdk-go v1.0.14
+	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/cls v1.3.112
+	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.3.112
 	gorm.io/driver/mysql v1.6.0
 	gorm.io/gorm v1.31.1
 )
@@ -39,16 +42,19 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
+	github.com/klauspost/compress v1.17.6 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/meguminnnnnnnnn/go-openai v0.1.2 // indirect
 	github.com/milvus-io/milvus-proto/go-api/v2 v2.4.10-0.20240819025435-512e3b98866a // indirect
+	github.com/pierrec/lz4 v2.6.1+incompatible // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	github.com/smarty/assertions v1.16.0 // indirect
 	github.com/tidwall/gjson v1.14.4 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.0 // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
+	go.uber.org/atomic v1.9.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250324211829-b45e905df463 // indirect
 	google.golang.org/grpc v1.73.0 // indirect
 )
@@ -77,7 +83,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/goph/emperror v0.17.2 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
-	github.com/joho/godotenv v1.5.1 // indirect
+	github.com/joho/godotenv v1.5.1
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect

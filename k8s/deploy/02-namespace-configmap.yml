@@ -33,27 +33,27 @@ data:
 
     # DeepSeek V3 推理模型（慢但强，用于 Plan-Execute-Replan 和复杂 Chat）
     ds_think_chat_model:
-      api_key: "4c0b5deb-a081-4a1d-9b34-3ec485e96b40"
+      api_key: "${ARK_API_KEY}"
       base_url: "https://ark.cn-beijing.volces.com/api/v3"
       model: "deepseek-v3-2-251201"
 
     # DeepSeek V3 快模型（用于 Chat Workflow 和 Executor）
     ds_quick_chat_model:
-      api_key: "4c0b5deb-a081-4a1d-9b34-3ec485e96b40"
+      api_key: "${ARK_API_KEY}"
       base_url: "https://ark.cn-beijing.volces.com/api/v3"
       model: "deepseek-v3-2-251201"
 
     # 豆包 Embedding 模型（用于 Milvus 向量化和 RAG 检索）
     doubao_embedding_model:
-      api_key: "4c0b5deb-a081-4a1d-9b34-3ec485e96b40"
+      api_key: "${ARK_API_KEY}"
       model: "doubao-embedding-vision-251215"
       vector_dim: "2048"
 
     # 知识库文件目录（挂载 PVC 或 emptyDir）
     file_dir: "/app/docs"
 
-    # 腾讯云 MCP 日志查询端点（可选）
-    mcp_url: "https://mcp-api.tencent-cloud.com/sse/55f02ffd72504e19"
+    # 腾讯云 MCP 日志查询端点（可选，token 易失效，推荐用下方 cls 直连）
+    mcp_url: "https://mcp-api.tencent-cloud.com/sse/${CLS_MCP_TOKEN}"
 
     # Prometheus HTTP API 地址（mock-prometheus 或真实 Prometheus）
     prometheus:

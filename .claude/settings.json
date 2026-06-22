@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -rl \"AKID\\\\|secret\\\\|api_key.*[\\\\\"'][a-zA-Z0-9]\\\\{20,\\\\}\\\\|4c0b5deb\" --include=\"*.go\" --include=\"*.yml\" --include=\"*.yaml\" --include=\"*.json\" .)",
+      "Bash(grep -n \"api_key\\\\|secret\\\\|AKID\\\\|4c0b5deb\\\\|55f02\\\\|\\\\\\\\$\\\\{\" docker/conf-docker.yml)",
+      "Bash(grep -n \"api_key\\\\|secret\\\\|AKID\\\\|4c0b5deb\\\\|55f02\\\\|\\\\\\\\$\\\\{\" k8s/deploy/02-namespace-configmap.yml)",
+      "Bash(grep -nE '\\\\$\\\\{' docker/conf-docker.yml)",
+      "Bash(grep -nE '\\\\$\\\\{' k8s/deploy/02-namespace-configmap.yml)",
+      "Bash(awk '{print $1}')"
+    ]
+  }
+}

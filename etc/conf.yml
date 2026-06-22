@@ -15,26 +15,36 @@ log_callback:
   debug: false
 
 ds_think_chat_model:
-  api_key: "4c0b5deb-a081-4a1d-9b34-3ec485e96b40"
+  api_key: "${ARK_API_KEY}"
   base_url: "https://ark.cn-beijing.volces.com/api/v3"
   model: "deepseek-v3-2-251201"
 
 ds_quick_chat_model:
-  api_key: "4c0b5deb-a081-4a1d-9b34-3ec485e96b40"
+  api_key: "${ARK_API_KEY}"
   base_url: "https://ark.cn-beijing.volces.com/api/v3"
   model: "deepseek-v3-2-251201"
 
 # 豆包的结合版embedding模型（支持文本、图片）
 doubao_embedding_model:
-  api_key: "4c0b5deb-a081-4a1d-9b34-3ec485e96b40"
+  api_key: "${ARK_API_KEY}"
   model: "doubao-embedding-vision-251215"
   vector_dim: "2048"
 
 # 知识库文件目录
 file_dir: "/Users/runtinggan/go/src/watchTower/docs"
 
-#腾讯CLS的MCP
-mcp_url: "https://mcp-api.tencent-cloud.com/sse/55f02ffd72504e19"
+#腾讯CLS的MCP（备选；token 易失效，推荐用下方 cls 直连）
+mcp_url: "https://mcp-api.tencent-cloud.com/sse/${CLS_MCP_TOKEN}"
+
+# 腾讯云 CLS 直连配置（query_log 工具直接调 SearchLog API，绕开 MCP）。
+# 若配置了 cls，query_log 使用直连方式；否则回退到 MCP(mcp_url)，MCP 不可用则降级跳过。
+# 真实值放 .env（不提交 git），此处为 ${VAR} 占位符。
+cls:
+  secret_id: "${CLS_SECRET_ID}"
+  secret_key: "${CLS_SECRET_KEY}"
+  topic_id: "${CLS_TOPIC_ID}"
+  endpoint: "${CLS_ENDPOINT}"
+  region: "${CLS_REGION}"
 
 # Prometheus HTTP API（query_prometheus_alerts）；不配则默认 http://127.0.0.1:9090
 prometheus:

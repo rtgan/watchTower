@@ -1,0 +1,75 @@
+# watchTower 告警规则
+# 对应知识库《告警处理手册》6 个 alertname，确保 query_prometheus_alerts 返回的告警名
+# 与知识库小节标题里的英文 alertname 完全一致，Agent 才能正确 query_internal_docs。
+#
+# 部署：promtool check rules watchtower_alerts.yml && 放到 Prometheus 容器的 rules 目录，
+# 并在 prometheus.yml 的 rule_files 加载。reload 后 /api/v1/alerts 即出现这些告警。
+groups:
+  - name: watchtower-service
+    interval: 30s
+    rules:
+      # 1. 服务下线：up==0 持续 1 分钟
+      - alert: ServiceDown
+        expr: up{job=~"order-service|payment-service|reconciliation-service|user-service"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.job }} 服务不可用"
+          description: "{{ $labels.instance }} 的 {{ $labels.job }} 健康检查失败，疑似 panic 重启，服务可能已宕机"
+
+      # 2. 接口失败率过高：5 分钟内失败率 > 5%
+      - alert: APIHighErrorRate
+        expr: |
+          sum(rate(http_requests_total{job="order-service",status=~"5.."}[5m])) by (instance, job, endpoint)
+          / sum(rate(http_requests_total{job="order-service"}[5m])) by (instance, job, endpoint)
+          > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "接口失败率过高"
+          description: "{{ $labels.endpoint }} 接口失败率过高，疑似下游 payment-service 不可用"
+
+      # 3. 对账差异：差异笔数 > 0
+      - alert: ReconciliationDiff
+        expr: reconciliation_diff_count{job="reconciliation-service"} > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "与下游对账发现差异"
+          description: "reconciliation-service 发现上游 order 与下游 payment 对账差异 {{ $value }} 笔，疑似失败订单未同步"
+
+  - name: watchtower-node
+    interval: 30s
+    rules:
+      # 4. 内存使用率过高 > 90%
+      - alert: HighMemoryUsage
+        expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 > 90
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "实例内存使用率过高"
+          description: "{{ $labels.instance }} 内存使用率已超过 90%，疑似服务内存泄漏，可能导致 OOM"
+
+      # 5. CPU 使用率过高 > 80%
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance)(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "实例 CPU 使用率过高"
+          description: "{{ $labels.instance }} CPU 使用率已超过 80%，持续 5 分钟，疑似服务重启风暴"
+
+      # 6. 磁盘空间不足：剩余 < 10%
+      - alert: DiskSpaceRunningLow
+        expr: (1 - node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"}) * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "磁盘空间不足"
+          description: "{{ $labels.instance }} 的 {{ $labels.mountpoint }} 分区剩余空间不足 10%，疑似日志暴涨刷爆磁盘"

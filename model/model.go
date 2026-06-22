@@ -1,8 +1,11 @@
 package model
 
 import (
+	"bytes"
 	"context"
+	"io"
 	"log"
+	"net/http"
 	"time"
 	"watchTower/common/config"
 
@@ -10,6 +13,65 @@ import (
 	"github.com/cloudwego/eino-ext/components/model/deepseek"
 	"github.com/cloudwego/eino/components/model"
 )
+
+// retryHTTPClient 包装 http.Client，对 5xx / 429 自动重试。
+// deepseek/ark 偶发 500（服务端瞬时错误），不重试会直接 panic 中断 Agent 闭环。
+func retryHTTPClient() *http.Client {
+	return &http.Client{
+		Timeout: 3 * time.Minute,
+		Transport: &retryTransport{
+			base:      http.DefaultTransport,
+			maxRetry:  4,
+			backoffMs: 800,
+		},
+	}
+}
+
+type retryTransport struct {
+	base      http.RoundTripper
+	maxRetry  int
+	backoffMs int
+}
+
+func (t *retryTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	// 重试需要可重放 body：读出来缓存
+	var bodyBytes []byte
+	if req.Body != nil {
+		var err error
+		bodyBytes, err = io.ReadAll(req.Body)
+		req.Body.Close()
+		if err != nil {
+			return nil, err
+		}
+	}
+	var resp *http.Response
+	var err error
+	for attempt := 0; attempt <= t.maxRetry; attempt++ {
+		if bodyBytes != nil {
+			req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+			req.GetBody = func() (io.ReadCloser, error) { return io.NopCloser(bytes.NewReader(bodyBytes)), nil }
+		}
+		resp, err = t.base.RoundTrip(req)
+		if err != nil {
+			return nil, err
+		}
+		// 5xx / 429 重试，其余直接返回
+		if resp.StatusCode < 500 && resp.StatusCode != 429 {
+			return resp, nil
+		}
+		// 读空响应体以便复用连接
+		resp.Body.Close()
+		if attempt == t.maxRetry {
+			// 最后一次：重新发一次拿原始响应给上层（保留真实错误码）
+			if bodyBytes != nil {
+				req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+			}
+			return t.base.RoundTrip(req)
+		}
+		time.Sleep(time.Duration(t.backoffMs<<(attempt)) * time.Millisecond)
+	}
+	return resp, err
+}
 
 // =================== AIModel 定义 ===================
 // 一个函数类型。流式响应时，每收到 AI 吐出的一小段文字，就调用这个回调把内容实时推送给前端，用于实时展示响应内容
@@ -32,9 +94,10 @@ func NewDsThinkChatModel(ctx context.Context, conf *config.Config) *DsThinkChatM
 	apiKey := conf.DsThinkChatModel.ApiKey
 	baseUrl := conf.DsThinkChatModel.BaseUrl
 	cm, err := deepseek.NewChatModel(ctx, &deepseek.ChatModelConfig{
-		APIKey:  apiKey,
-		BaseURL: baseUrl,
-		Model:   model,
+		APIKey:     apiKey,
+		BaseURL:    baseUrl,
+		Model:      model,
+		HTTPClient: retryHTTPClient(),
 	})
 	if err != nil {
 		log.Fatalf("new deepseek chat model: %v", err)
@@ -58,9 +121,10 @@ func NewDsQuickChatModel(ctx context.Context, conf *config.Config) *DsQuickChatM
 	apiKey := conf.DsQuickChatModel.ApiKey
 	baseUrl := conf.DsQuickChatModel.BaseUrl
 	cm, err := deepseek.NewChatModel(ctx, &deepseek.ChatModelConfig{
-		APIKey:  apiKey,
-		BaseURL: baseUrl,
-		Model:   model,
+		APIKey:     apiKey,
+		BaseURL:    baseUrl,
+		Model:      model,
+		HTTPClient: retryHTTPClient(),
 	})
 	if err != nil {
 		log.Fatalf("new deepseek chat model: %v", err)

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"watchTower/ai/tools"
-	"watchTower/common/config"
 	conf "watchTower/common/config"
 	logcallback "watchTower/common/log_callback"
 
@@ -14,15 +13,15 @@ import (
 )
 
 func main() {
-	config.InitConfig()
+	conf.InitConfig()
 	ctx := context.Background()
-	// 创建 ChatModel
-	config := &openai.ChatModelConfig{
-		APIKey:  "4c0b5deb-a081-4a1d-9b34-3ec485e96b40",
-		Model:   "deepseek-v3-2-251201",
-		BaseURL: "https://ark.cn-beijing.volces.com/api/v3",
+	// 创建 ChatModel（密钥从配置读取，避免硬编码）
+	cfg := &openai.ChatModelConfig{
+		APIKey:  conf.Conf.DsThinkChatModel.ApiKey,
+		Model:   conf.Conf.DsThinkChatModel.Model,
+		BaseURL: conf.Conf.DsThinkChatModel.BaseUrl,
 	}
-	chatModel, err := openai.NewChatModel(ctx, config)
+	chatModel, err := openai.NewChatModel(ctx, cfg)
 	if err != nil {
 		panic(err)
 	}

@@ -1,0 +1,43 @@
+# 敏感配置（含 API key / SecretKey 等），不提交 git
+.env
+etc/.env
+# 各环境配置如含密钥也忽略；保留 *.example 作为模板
+etc/conf.local.yml
+
+# 二进制 / 构建产物
+/bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.out
+
+# Go 测试覆盖率
+*.prof
+coverage.txt
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 临时文件
+/tmp/
+*.log
+
+# 验证doc
+doc/*.md
+
+# Docker / 中间件运行数据（Milvus / etcd / minio 数据卷，本地运行产物，体积大且含运行态数据）
+docker/volumes/
+
+# Claude Code 本地会话配置（可能含本地凭证 / 历史命令）
+.claude/settings.local.json
+
+# 上传脚本运行产物
+mock_data/uploaded/

@@ -37,7 +37,7 @@ func NewMilvusRetriever(ctx context.Context) (rtr retriever.Retriever, err error
 		Client:          cli,
 		Collection:      config.Conf.Milvus.CollectionName,
 		VectorField:     "vector",
-		VectorConverter: floatVectorConverter,
+		VectorConverter: floatVectorConverter, //将float64（BinaryVector）转换为float32（FloatVector）
 		MetricType:      entity.L2,
 		OutputFields: []string{ //需要返回的字段
 			"id",
