@@ -2,6 +2,7 @@ package vo
 
 type ChatReq struct {
 	Id       string `json:"Id"`
+	UserId   string `json:"UserId"` // 用户标识，用于跨会话长期记忆；为空时仅使用会话级记忆
 	Question string `json:"Question"`
 }
 type ChatRes struct {
@@ -18,8 +19,9 @@ type ChatStreamRes struct {
 type AIOpsReq struct {
 }
 type AIOpsRes struct {
-	Result string   `json:"result"`
+	Result  string   `json:"result"`
 	Detail []string `json:"detail"`
+	TraceID string  `json:"trace_id,omitempty"` // 对应 /api/traces/:id，便于排查本次诊断
 }
 
 type FileUploadReq struct {

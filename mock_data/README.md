@@ -31,8 +31,8 @@
 | `logs/reconciliation-error.log` | 对账差异日志(52002) | `query_log(keyword=["error","reconciliation"])` |
 | `logs/node-resource.log` | 内存/CPU/磁盘日志 | `query_log(keyword="memory"/"oom"/"cpu"/"disk")` |
 | `error_reports/incident-20260620-order-service.md` | 故障报告(报错+根因+处置) | Agent 最终产出对照 |
-| `../docs/告警处理手册.md` | 各告警的排查步骤与搜索关键字 | `query_internal_docs`（RAG 知识库） |
-| `../docs/服务错误类型.md` | 多服务错误码释义 | `query_internal_docs`（RAG 知识库） |
+| `../knowledge/告警处理手册.md` | 各告警的排查步骤与搜索关键字 | `query_internal_docs`（RAG 知识库） |
+| `../knowledge/服务错误类型.md` | 多服务错误码释义 | `query_internal_docs`（RAG 知识库） |
 
 ## 三、Agent 闭环如何跑通
 
@@ -60,7 +60,7 @@ go run scripts_mockPrometheus/mock_prometheus.go   # 监听 :9090
 # 2. 把 logs/ 下的日志上传到腾讯 CLS（或用其 mock），供 query_log 检索
 #    日志工具走 CLS MCP（etc/conf.yml 的 mcp_url）
 
-# 3. 重建知识库（索引 docs/*.md 到 Milvus）
+# 3. 重建知识库（索引 knowledge/*.md 到 Milvus）
 cd ai/cmd/knowledge_cmd && go run main.go
 
 # 4. 触发 Agent 排查

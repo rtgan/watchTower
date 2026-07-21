@@ -10,6 +10,7 @@ import (
 	"time"
 	"watchTower/ai/agent/chat_workflow"
 	logcallback "watchTower/common/log_callback"
+	"watchTower/common/trace"
 	"watchTower/mem"
 	"watchTower/model/vo"
 
@@ -28,19 +29,35 @@ func ChatStream(c *gin.Context) {
 	defer cancel()
 	ctx := context.WithValue(baseCtx, "client_id", req.Id)
 
+	// 加载历史：若长期记忆启用且带 UserId，注入语义召回记忆
+	var history []*schema.Message
+	lt := mem.GetDefaultLongTermMemory()
+	if lt != nil && req.UserId != "" {
+		sm := mem.GetSimpleMemoryWithUser(req.Id, req.UserId, lt)
+		history = sm.GetMessagesWithContext(ctx, req.Question)
+	} else {
+		history = mem.GetSimpleMemory(req.Id).GetMessages()
+	}
+
 	userMessage := &chat_workflow.UserMessage{
 		ID:      req.Id,
 		Query:   req.Question,
-		History: mem.GetSimpleMemory(req.Id).GetMessages(),
+		History: history,
 	}
+	// 请求级 trace
+	rec := trace.NewRecorder(req.Question, time.Now().Format(time.RFC3339Nano))
+	ctx = trace.WithRecorder(ctx, rec)
+	runStatus := "ok"
+	defer func() { rec.Finalize(runStatus, nil) }()
 	runner, err := chat_workflow.BuildChatAgent(ctx)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	stream, err := runner.Stream(ctx, userMessage, compose.WithCallbacks(logcallback.LogCallback(nil)))
+	stream, err := runner.Stream(ctx, userMessage, compose.WithCallbacks(logcallback.LogCallback(nil), trace.EinoHandler(rec)))
 	if err != nil {
+		runStatus = "error"
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"message": fmt.Sprintf("Failed to start stream: %v", err)})
 		return
 	}
@@ -96,6 +113,7 @@ func ChatStream(c *gin.Context) {
 			break
 		}
 		if err != nil {
+			runStatus = "error"
 			c.SSEvent("error", gin.H{"message": fmt.Sprintf("Failed to send message: %v", err)}) //相当于writer.write并自动flusher.flush
 			return
 		}
@@ -106,8 +124,16 @@ func ChatStream(c *gin.Context) {
 		}
 	}
 
-	mem.GetSimpleMemory(req.Id).SetMessages(schema.UserMessage(req.Question))
-	mem.GetSimpleMemory(req.Id).SetMessages(schema.AssistantMessage(fullResp.String(), nil))
+	mem.GetSimpleMemory(req.Id).SetMessages(ctx, schema.UserMessage(req.Question))
+	mem.GetSimpleMemory(req.Id).SetMessages(ctx, schema.AssistantMessage(fullResp.String(), nil))
+
+	// 写入全量历史（MySQL 持久化）
+	if hs := mem.GetDefaultHistoryStore(); hs != nil {
+		_ = hs.AppendMessages(req.Id, req.UserId, []*mem.Message{
+			schema.UserMessage(req.Question),
+			schema.AssistantMessage(fullResp.String(), nil),
+		})
+	}
 
 	// 正文已在流中通过 cb 推送，并以 data: [DONE] 结束；不要再 c.JSON，否则会在 SSE 体后拼接 JSON，客户端解析会坏掉
 }

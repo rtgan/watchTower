@@ -6,7 +6,8 @@
       "Bash(grep -n \"api_key\\\\|secret\\\\|AKID\\\\|4c0b5deb\\\\|55f02\\\\|\\\\\\\\$\\\\{\" k8s/deploy/02-namespace-configmap.yml)",
       "Bash(grep -nE '\\\\$\\\\{' docker/conf-docker.yml)",
       "Bash(grep -nE '\\\\$\\\\{' k8s/deploy/02-namespace-configmap.yml)",
-      "Bash(awk '{print $1}')"
+      "Bash(awk '{print $1}')",
+      "Bash(rg -n \"ARK_API_KEY|envsubst|ExpandEnv|os.Expand|\\\\$\\\\{\" -t go -t sh -t make --glob '*.yml')"
     ]
   }
 }

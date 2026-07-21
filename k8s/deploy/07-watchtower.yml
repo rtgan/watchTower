@@ -65,8 +65,6 @@ spec:
         - name: conf
           mountPath: /app/etc/conf.yml
           subPath: conf.yml
-        - name: docs
-          mountPath: /app/docs
         livenessProbe:
           httpGet:
             path: /health
@@ -98,8 +96,6 @@ spec:
           items:
           - key: conf.yml
             path: conf.yml
-      - name: docs
-        emptyDir: {}
 ---
 # watchTower Frontend (Nginx) Deployment + Service
 apiVersion: v1

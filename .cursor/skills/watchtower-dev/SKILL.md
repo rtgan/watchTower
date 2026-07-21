@@ -22,7 +22,7 @@ watchTower is a Go Gin backend providing AI-powered ops capabilities: chat (incl
 watchTower/
 ├── main.go                              # Gin server entry (config → middleware → router)
 ├── etc/conf.yml                         # All config (server, LLM, embedding, Milvus, Prometheus, MCP, Google Search)
-├── docs/告警处理手册.md                  # Example knowledge base docs for Milvus indexing
+├── knowledge/告警处理手册.md                  # Example knowledge base docs for Milvus indexing
 │
 ├── ai/
 │   ├── tools/                           # Eino tool implementations (each exports a constructor)
@@ -142,7 +142,7 @@ watchTower/
 │   ├── package.json, start.sh, README.md
 │   └── .gitignore
 │
-└── docs/告警处理手册.md               # Example knowledge base document (indexed into Milvus by knowledge_cmd)
+└── knowledge/告警处理手册.md               # Example knowledge base document (indexed into Milvus by knowledge_cmd)
 ```
 
 ## Key Architectural Patterns

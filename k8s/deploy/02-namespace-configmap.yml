@@ -50,7 +50,7 @@ data:
       vector_dim: "2048"
 
     # 知识库文件目录（挂载 PVC 或 emptyDir）
-    file_dir: "/app/docs"
+    file_dir: "/app/knowledge"
 
     # 腾讯云 MCP 日志查询端点（可选，token 易失效，推荐用下方 cls 直连）
     mcp_url: "https://mcp-api.tencent-cloud.com/sse/${CLS_MCP_TOKEN}"

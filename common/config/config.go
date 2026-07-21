@@ -49,6 +49,10 @@ func InitConfig() (*Config, error) {
 	if err := v.Unmarshal(Conf); err != nil {
 		log.Fatalf("unmarshal: %v", err)
 	}
+	// 相对路径基于模块根目录解析，避免硬编码用户路径
+	if Conf.FileDir != "" && !filepath.IsAbs(Conf.FileDir) {
+		Conf.FileDir = filepath.Join(root, Conf.FileDir)
+	}
 	return Conf, nil
 }
 
@@ -88,6 +92,42 @@ type Config struct {
 	// 腾讯云 CLS 直连配置（query_log 工具直接调 SearchLog API，绕开 MCP）。
 	// 不配则 query_log 不可用（executor 会降级跳过）。
 	CLS                  CLSConfig                     `mapstructure:"cls"`
+	// Trace 可观测性配置。结构化 trace 总是开启（落 traces/）；enabled=true 额外开启 OTel sink。
+	Trace                TraceConfig                   `mapstructure:"trace"`
+	// 会话记忆配置。driver=memory(默认) 用进程内；driver=redis 用 Redis（分布式一致）。
+	Memory               MemoryConfig                  `mapstructure:"memory"`
+	// Agent 执行策略。supervisor=并行子 agent（默认）；plan_execute=单 executor 回退。
+	Agent                AgentConfig                   `mapstructure:"agent"`
+}
+
+// AgentConfig /api/ai-ops 执行策略配置。
+type AgentConfig struct {
+	Strategy string `mapstructure:"strategy"` // "supervisor" | "plan_execute"
+}
+
+// MemoryConfig 会话记忆存储 + 摘要压缩 + 长期记忆配置。
+type MemoryConfig struct {
+	Driver        string `mapstructure:"driver"`         // "memory" | "redis"
+	RedisAddr     string `mapstructure:"redis_addr"`      // redis 地址，driver=redis 时用
+	RedisPassword string `mapstructure:"redis_password"`
+	RedisDB       int    `mapstructure:"redis_db"`
+	// Summarize 历史超过 2*maxWindow 时用 LLM 摘要压缩（增加延迟，默认 false，关闭则纯窗口淘汰）。
+	Summarize     bool   `mapstructure:"summarize"`
+	// MySQLDSN MySQL 持久化连接串，配置后自动使用 MySQLStore 替代 InMemoryStore。
+	// 格式: "user:pass@tcp(127.0.0.1:3306)/watchtower?charset=utf8mb4&parseTime=True&loc=Local"
+	// 密码建议放 .env 用 ${MYSQL_PASSWORD} 引用。
+	MySQLDSN      string `mapstructure:"mysql_dsn"`
+	// LongTerm 是否启用长期记忆（Milvus 语义检索），需要 MySQLDSN 配置。
+	LongTerm      bool   `mapstructure:"long_term"`
+	// LongTermTopK 语义检索返回的记忆条数，默认 3。
+	LongTermTopK  int    `mapstructure:"long_term_topk"`
+}
+
+// TraceConfig trace 落盘 + 可选 OTel sink 配置。
+type TraceConfig struct {
+	Enabled     bool   `mapstructure:"enabled"`      // 是否启用 OTel sink（结构化 trace 不受此开关影响，总是开）
+	Dir         string `mapstructure:"dir"`           // trace 落盘目录，默认 "traces"
+	ServiceName string `mapstructure:"service_name"` // OTel service.name
 }
 
 // CLSConfig 腾讯云 CLS 日志检索直连配置
@@ -142,4 +182,6 @@ type MilvusConfig struct {
 	Address        string `mapstructure:"address"`
 	DbName         string `mapstructure:"db_name"`
 	CollectionName string `mapstructure:"collection_name"`
+	// MemoryCollectionName 长期记忆专用集合名，默认 "conversation_memory"。
+	MemoryCollectionName string `mapstructure:"memory_collection_name"`
 }

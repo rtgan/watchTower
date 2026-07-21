@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"watchTower/ai/agent/plan_execute_replan"
+	"watchTower/ai/agent/supervisor"
 	"watchTower/common/config"
 )
 
@@ -18,7 +20,24 @@ func main() {
 "5. 涉及到日志的查询,需要先通过日志工具获取相关日志信息"
 "6. 分别将告警对应查询到的信息进行总结分析,最后汇总所有告警和总结。"`
 
-	resp, detail, err := plan_execute_replan.BuildPlanExecuteReplanAgent(ctx, query)
+	// 默认走 supervisor（与 /api/ai-ops 一致）；传 --plan_execute 回退到单 executor
+	usePlanExecute := false
+	for _, a := range os.Args[1:] {
+		if a == "--plan_execute" {
+			usePlanExecute = true
+		}
+	}
+
+	var (
+		resp   string
+		detail []string
+		err    error
+	)
+	if usePlanExecute {
+		resp, detail, err = plan_execute_replan.BuildPlanExecuteReplanAgent(ctx, query)
+	} else {
+		resp, detail, err = supervisor.BuildSupervisorAgent(ctx, query)
+	}
 	if err != nil {
 		panic(err)
 	}
@@ -26,5 +45,4 @@ func main() {
 	fmt.Println(resp)
 	fmt.Println("----- Final detail -----")
 	fmt.Println(detail)
-
 }
