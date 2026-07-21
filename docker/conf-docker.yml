@@ -27,8 +27,8 @@ doubao_embedding_model:
   model: "doubao-embedding-vision-251215"
   vector_dim: "2048"
 
-# Docker 容器内的文件目录
-file_dir: "/app/docs"
+# Docker 容器内的文件目录（仅 KB 业务文档；工程文档不进容器/Milvus）
+file_dir: "/app/knowledge"
 
 mcp_url: "https://mcp-api.tencent-cloud.com/sse/${CLS_MCP_TOKEN}"
 

@@ -11,7 +11,7 @@
 |---|---|---|---|---|
 | 告警 | `query_prometheus_alerts` | [ai/tools/query_metric_alerts.go](../ai/tools/query_metric_alerts.go) | `etc/conf.yml` → `prometheus.base_url` | Prometheus HTTP API `GET /api/v1/alerts` |
 | 日志 | `query_log` | [ai/tools/query_log.go](../ai/tools/query_log.go) | `cls.*`（直连，**推荐**）或 `mcp_url`（MCP 回退） | 腾讯云 CLS（直连走 SearchLog API；回退走 MCP/SSE） |
-| 文档 | `query_internal_docs` | [ai/tools/query_internal_docs.go](../ai/tools/query_internal_docs.go) | `etc/conf.yml` → `milvus` | Milvus 知识库（已索引 docs/*.md） |
+| 文档 | `query_internal_docs` | [ai/tools/query_internal_docs.go](../ai/tools/query_internal_docs.go) | `etc/conf.yml` → `milvus` | Milvus 知识库（已索引 knowledge/*.md） |
 
 > **`query_log` 两种接入方式**：
 > - **CLS 直连（推荐）**：配 `cls.*`，直接调 CLS SearchLog API。稳定、不依赖易失效的 MCP token，已实跑验证。

@@ -114,7 +114,7 @@ services:
       - "6872:6872"
     volumes:
       - ./conf-docker.yml:/app/etc/conf.yml
-      - ../docs:/app/docs
+      - ../knowledge:/app/knowledge
     depends_on:
       standalone:
         condition: service_healthy

@@ -5,13 +5,16 @@ import (
 	"net/http"
 	"time"
 	"watchTower/ai/agent/plan_execute_replan"
+	"watchTower/ai/agent/supervisor"
+	"watchTower/common/config"
+	"watchTower/common/trace"
 	"watchTower/model/vo"
 
 	"github.com/gin-gonic/gin"
 )
 
 func AIOps(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(c.Request.Context(), 1*time.Minute)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 3*time.Minute)
 	defer cancel()
 
 	query := `
@@ -30,18 +33,40 @@ func AIOps(c *gin.Context) {
 ## 结论
 `
 
-	resp, detail, err := plan_execute_replan.BuildPlanExecuteReplanAgent(ctx, query)
+	// 请求级 trace：plan_execute_replan / supervisor 从 ctx 取 Recorder，捕获事件流
+	rec := trace.NewRecorder(query, time.Now().Format(time.RFC3339Nano))
+	ctx = trace.WithRecorder(ctx, rec)
+
+	// 按策略选择执行器：supervisor（默认，并行子 agent）或 plan_execute（回退）
+	var (
+		resp   string
+		detail []string
+		err    error
+	)
+	if config.Conf != nil && config.Conf.Agent.Strategy == "plan_execute" {
+		//planner/executor/replanner是流水线形式
+		resp, detail, err = plan_execute_replan.BuildPlanExecuteReplanAgent(ctx, query)
+	} else { //supervisor 扮演的就是 orchestrator（编排者），只是流程代码写死，不由LLM动态决策：triage（取告警清单）→ fan-out（分发任务）→ synthesize（汇总）
+		resp, detail, err = supervisor.BuildSupervisorAgent(ctx, query)
+	}
+	status := "ok"
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		status = "error"
+		run := rec.Finalize(status, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error(), "trace_id": run.ID})
 		return
 	}
 	if resp == "" {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "内部错误"})
+		status = "error"
+		run := rec.Finalize(status, nil)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "内部错误", "trace_id": run.ID})
 		return
 	}
+	run := rec.Finalize(status, err)
 	res := &vo.AIOpsRes{
-		Result: resp,
-		Detail: detail,
+		Result:  resp,
+		Detail:  detail,
+		TraceID: run.ID,
 	}
 	c.JSON(http.StatusOK, res)
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"io/fs"
 	"path/filepath"
@@ -19,19 +20,41 @@ import (
 
 func main() {
 	config.InitConfig()
+	reset := flag.Bool("reset", false, "先 drop Milvus 集合再重建（清空旧/污染数据，如曾把工程文档误索引过）")
+	flag.Parse()
+
 	ctx := context.Background()
+
+	// --reset：drop 集合，确保重建后只剩当前 KB 目录的文档（不含历史污染记录）
+	if *reset {
+		cli, err := milvus.NewMilvusClient(ctx)
+		if err != nil {
+			panic(err)
+		}
+		coll := config.Conf.Milvus.CollectionName
+		_ = cli.ReleaseCollection(ctx, coll) // 已 load 需先 release，忽略错误
+		if err := cli.DropCollection(ctx, coll); err != nil {
+			fmt.Printf("[warn] drop collection %s: %v\n", coll, err)
+		} else {
+			fmt.Printf("[info] dropped collection %s, will recreate\n", coll)
+		}
+	}
+
 	r, err := knowledge_index_workflow.BuildKnowledgeIndexing(ctx)
 	if err != nil {
 		panic(err)
 	}
 
-	// 删除已有数据，避免重复
-	//所执行函数(这里是main)的路径下 必须得有./docs —— 然后把这之下的路径递归遍历给path
-	err = filepath.WalkDir("./docs", func(path string, d fs.DirEntry, err error) error {
+	// 遍历 config.FileDir（KB 目录，仅业务文档；工程文档在 docs/ 不进 Milvus）
+	kbDir := config.Conf.FileDir
+	if kbDir == "" {
+		kbDir = "./knowledge"
+	}
+	err = filepath.WalkDir(kbDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return fmt.Errorf("walk dir failed: %w", err)
 		}
-		if d.IsDir() { //常用来区分是否为目录/文件
+		if d.IsDir() {
 			return nil
 		}
 
@@ -41,7 +64,7 @@ func main() {
 		}
 
 		fmt.Printf("[start] indexing file: %s\n", path)
-		// 删除biz数据metadata中_source一样的数据
+		// 删除biz数据metadata中_source一样的数据，避免重复
 		loader, err := fileloader.NewFileLoader(ctx)
 		if err != nil {
 			return err
@@ -84,7 +107,7 @@ func main() {
 			}
 		}
 
-		// 走eino-graph：取文档并切片+向量化+存入Milvus(ids：写入 Milvus 的每一条记录的id)————id在MarkdownSplitter节点的newDocumentTransformer方法中生成
+		// 走eino-graph：取文档并切片+向量化+存入Milvus(ids：写入 Milvus 的每一条记录的id)----id在MarkdownSplitter节点的newDocumentTransformer方法中生成
 		ids, err := r.Invoke(ctx, document.Source{URI: path}, compose.WithCallbacks(logcallback.LogCallback(&config.Conf.LogCallback)))
 		if err != nil {
 			return fmt.Errorf("invoke index graph failed: %w", err)
@@ -92,4 +115,22 @@ func main() {
 		fmt.Printf("[done] indexing file: %s, len of parts: %d，%s\n", path, len(ids), ids)
 		return nil
 	})
+	if err != nil {
+		fmt.Printf("[error] index walk: %v\n", err)
+	}
+
+	// 刷新 Milvus 搜索视图：reindex（删/改/重建）后，已加载的搜索快照会滞后，仍返回已删记录。
+	// release+load 强制重新加载，确保 query_internal_docs 检索到最新数据。
+	rc, rerr := milvus.NewMilvusClient(ctx)
+	if rerr != nil {
+		fmt.Printf("[warn] reload client: %v\n", rerr)
+	} else {
+		coll := config.Conf.Milvus.CollectionName
+		_ = rc.ReleaseCollection(ctx, coll)
+		if e := rc.LoadCollection(ctx, coll, false); e != nil {
+			fmt.Printf("[warn] reload collection: %v\n", e)
+		} else {
+			fmt.Printf("[info] reloaded collection %s for fresh search\n", coll)
+		}
+	}
 }

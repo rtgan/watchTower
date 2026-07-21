@@ -33,8 +33,8 @@ func main() {
 	fmt.Println("Q: 你好")
 	fmt.Println("A:", answer)
 	// 保存对话历史
-	mem.GetSimpleMemory(id).SetMessages(schema.UserMessage("你好"))
-	mem.GetSimpleMemory(id).SetMessages(schema.SystemMessage(out.Content))
+	mem.GetSimpleMemory(id).SetMessages(ctx, schema.UserMessage("你好"))
+	mem.GetSimpleMemory(id).SetMessages(ctx, schema.SystemMessage(out.Content))
 
 	// 第二次对话
 	userMessage = &chat_workflow.UserMessage{

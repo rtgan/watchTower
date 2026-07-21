@@ -13,6 +13,9 @@ etc/conf.local.yml
 *.so
 *.dylib
 *.out
+# 本地编译的 cmd 二进制（go build ./cmd/xxx 产物）
+checker
+knowledge_cmd
 
 # Go 测试覆盖率
 *.prof
@@ -31,8 +34,14 @@ Thumbs.db
 /tmp/
 *.log
 
+# trace 运行时输出（包含 agent 运行记录，含用户输入数据）
+traces/
+
 # 验证doc
 doc/*.md
+
+# 本地启动步骤文档（仅本地用，不提交 git）
+启动步骤.md
 
 # Docker / 中间件运行数据（Milvus / etcd / minio 数据卷，本地运行产物，体积大且含运行态数据）
 docker/volumes/
@@ -42,3 +51,5 @@ docker/volumes/
 
 # 上传脚本运行产物
 mock_data/uploaded/
+# eval 评估结果（生成产物，按策略+时间戳命名）
+eval/results/

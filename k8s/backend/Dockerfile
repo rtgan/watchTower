@@ -18,9 +18,10 @@ ENV TZ=Asia/Shanghai
 WORKDIR /app
 COPY --from=builder /watchtower /app/watchtower
 COPY ai/skills/ /app/ai/skills/
+COPY knowledge/ /app/knowledge/
 COPY go.mod /app/go.mod
 
-RUN mkdir -p /app/etc /app/docs
+RUN mkdir -p /app/etc
 
 EXPOSE 6872
 CMD ["/app/watchtower"]

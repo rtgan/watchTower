@@ -30,8 +30,10 @@ doubao_embedding_model:
   model: "doubao-embedding-vision-251215"
   vector_dim: "2048"
 
-# 知识库文件目录
-file_dir: "/Users/runtinggan/go/src/watchTower/docs"
+# 知识库文件目录（仅放 agent 该检索的业务文档：告警处理手册/服务错误类型；
+# 工程文档放 docs/，不进 Milvus，避免污染 query_internal_docs 检索）
+# 相对路径基于模块根目录（go.mod 所在目录）解析；也可用绝对路径
+file_dir: "knowledge"
 
 #腾讯CLS的MCP（备选；token 易失效，推荐用下方 cls 直连）
 mcp_url: "https://mcp-api.tencent-cloud.com/sse/${CLS_MCP_TOKEN}"
@@ -54,6 +56,7 @@ milvus:
   address: "localhost:19530"
   db_name: "agent" #库名
   collection_name: "biz" #集合名(表名)
+  memory_collection_name: "conversation_memory" #长期记忆集合名
 
 # Google Programmable Search（Custom Search JSON API），可选
 # 不配则跳过 google_search 工具，仍可使用 duckduckgo 等
@@ -61,5 +64,33 @@ milvus:
 google_search:
   api_key: ""
   search_engine_id: ""
+
+# Trace 可观测性（Phase 2）
+# 结构化 trace 总是开启：每次 agent 运行落 <dir>/<runID>.json，并提供 GET /api/traces、GET /api/traces/:id
+# enabled=true 额外开启 OTel sink：在 <dir>/otel/spans.jsonl 镜像 OTel span（对接外部 collector 用）
+trace:
+  enabled: false
+  dir: "traces"
+  service_name: "watchTower"
+
+# 会话记忆（Phase 3）
+# driver=memory（默认，进程内 map）；driver=redis 走 Redis（解决分布式一致性）
+# summarize=true 时，历史超 2*窗口 用 DsQuick 摘要压缩（增加延迟，默认 false）
+# mysql_dsn 配置后自动使用 MySQL 持久化存储；long_term=true 启用 Milvus 语义检索
+memory:
+  driver: "memory"
+  redis_addr: "localhost:6379"
+  redis_password: ""
+  redis_db: 0
+  summarize: false
+  mysql_dsn: "root:${MYSQL_PASSWORD}@tcp(127.0.0.1:3306)/watchtower?charset=utf8mb4&parseTime=True&loc=Local"
+  long_term: false
+  long_term_topk: 3
+
+# Agent 执行策略（Phase 4）
+# supervisor：告警 fan-out 并行子 agent 排查 + 汇总（默认，更快、贴合"分别处理每条告警"）
+# plan_execute：单 executor plan-execute-replan 状态机（回退对照）
+agent:
+  strategy: "supervisor"
 
 
